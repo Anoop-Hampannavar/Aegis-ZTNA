@@ -9,7 +9,17 @@ export default function App() {
   const [chainLogs, setChainLogs] = useState([
     { user: 'sys_admin', resource: 'Root DNS', time: '10 mins ago', risk: 'LOW', status: 'GRANTED', tx: '0x74a1b92c83d6a4fe91002bcedf826311' }
   ]);
+  // 1. Extract the base URL safely at the top of your function or right above the fetch
+  const baseUrl = import.meta.env.VITE_API_URL || 'https://aegis-ztna.onrender.com';
 
+// 2. Update your fetch call to use that clean baseUrl variable
+  const response = await fetch(`${baseUrl}/api/access/evaluate`, {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(yourDataPayload) // Ensure your payload object matches your variable name
+});
   const triggerEvaluation = async () => {
     setLoading(true);
     try {
