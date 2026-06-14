@@ -1,23 +1,25 @@
 import React, { useState } from 'react';
-import { Shield, ShieldAlert, ShieldCheck, Activity, Database, Key, HelpCircle, Terminal, Layers, CheckCircle, Map } from 'lucide-react';
+import { Shield, ShieldAlert, ShieldCheck, Activity, Database, Key, HelpCircle, Terminal, Layers, CheckCircle, Map, Info } from 'lucide-react';
 
 export default function App() {
   const [inputs, setInputs] = useState({ user: 'anoop@enterprise.com', resource: 'Core Financial DB', hour: 10, delay: 130, attempts: 0 });
   const [loading, setLoading] = useState(false);
   const [evaluation, setEvaluation] = useState(null);
-  const [activeTab, setActiveTab] = useState('dashboard'); // State to toggle pages
+  const [activeTab, setActiveTab] = useState('dashboard'); 
   const [showArchModal, setShowArchModal] = useState(false);
+  
+  // State to track which topology block is currently selected/clicked
+  const [selectedNode, setSelectedNode] = useState('client'); 
+
   const [chainLogs, setChainLogs] = useState([
     { user: 'sys_admin', resource: 'Root DNS', time: '10 mins ago', risk: 'LOW', status: 'GRANTED', tx: '0x74a1b92c83d6a4fe91002bcedf826311' }
   ]);
 
-  // Secure Environment Variable extraction with reliable fallback to your live Render instance
   const baseUrl = import.meta.env.VITE_API_URL || 'https://aegis-ztna.onrender.com';
 
   const triggerEvaluation = async () => {
     setLoading(true);
     try {
-      // Dynamic route generation targeting production cloud instances securely
       const response = await fetch(`${baseUrl}/api/access/evaluate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -38,10 +40,28 @@ export default function App() {
     }
   };
 
+  // Content dictionary for the 3 interactive topology blocks
+  const nodeDetails = {
+    client: {
+      title: "📱 Mobile Client Dashboard Layer",
+      tech: "React.js / Tailwind CSS / Lucide Vectors",
+      desc: "Captures contextual telemetry arrays directly from the user interface ecosystem. Tracks behavioral vectors including keystroke cadence delays, temporal access windows, and historical violation metrics, bundling them into secure state payloads."
+    },
+    gateway: {
+      title: "⚡ Edge Hosting CDN Layer",
+      tech: "Vercel Serverless Architecture",
+      desc: "Deploys production bundles globally to edge points for sub-millisecond static page parsing. Manages client routing states and translates security cross-origin environments (CORS configuration boundaries) to interface with decoupled engines."
+    },
+    engine: {
+      title: "🔥 AI Inference Compute Engine",
+      tech: "Flask Core / Isolation Forest ML Model / Gunicorn Workers",
+      desc: "Processes real-time multi-dimensional vectors using an unsupervised Isolation Forest model on Render clusters. Calculates structural risk levels and enforces automated gatekeeper parameters within custom request execution windows."
+    }
+  };
+
   return (
     <div style={{ backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', fontFamily: 'sans-serif', padding: '32px' }}>
       
-      {/* Injecting CSS Shimmer Styles Directly into Document for clean visual compilation */}
       <style>{`
         @keyframes shimmer {
           0% { background-position: -200% 0; }
@@ -62,6 +82,14 @@ export default function App() {
         }
         .pulse-arrow {
           animation: pulseArrow 2s infinite ease-in-out;
+        }
+        .topo-node {
+          transition: all 0.2s ease-in-out;
+          cursor: pointer;
+        }
+        .topo-node:hover {
+          transform: translateY(-2px);
+          filter: brightness(1.2);
         }
       `}</style>
 
@@ -85,7 +113,7 @@ export default function App() {
         <div style={{ display: 'flex', gap: '8px', background: '#111827', padding: '6px', borderRadius: '10px', border: '1px solid #1e293b', alignItems: 'center' }}>
           <button 
             onClick={() => setShowArchModal(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600', background: '#1e1b4b', color: '#818cf8', marginRight: '4px', border: '1px solid #4338ca' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: '1px solid #4338ca', cursor: 'pointer', fontSize: '13px', fontWeight: '600', background: '#1e1b4b', color: '#818cf8', marginRight: '4px' }}
           >
             <Map size={16} /> Topology Map
           </button>
@@ -153,8 +181,6 @@ export default function App() {
                   onClick={triggerEvaluation} 
                   disabled={loading}
                   style={{ width: '100%', background: '#3b82f6', color: '#ffffff', border: 'none', padding: '12px', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', transition: '0.2s', marginTop: '8px', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.2)' }}
-                  onMouseOver={e => !loading && (e.target.style.background = '#2563eb')}
-                  onMouseOut={e => !loading && (e.target.style.background = '#3b82f6')}
                 >
                   {loading ? 'Evaluating Threat Parameters...' : 'Deploy Policy Challenge Evaluation'}
                 </button>
@@ -169,7 +195,6 @@ export default function App() {
                 </h2>
 
                 {loading ? (
-                  /* Dynamic Shimmer Placeholder Engine Loading State Layout */
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <div className="shimmer-box" style={{ height: '125px' }}></div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
@@ -297,7 +322,7 @@ export default function App() {
           </div>
 
           <div style={{ marginTop: '32px', borderTop: '1px solid #1e293b', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '11px', color: '#475569', uppercase: 'true', fontWeight: '700' }}>Hirasugar Institute of Technology • Major Academic Project 2026</span>
+            <span style={{ fontSize: '11px', color: '#475569', fontWeight: '700' }}>Hirasugar Institute of Technology • Major Academic Project 2026</span>
             <button onClick={() => setActiveTab('dashboard')} style={{ background: 'transparent', border: '1px solid #3b82f6', color: '#3b82f6', padding: '8px 16px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>Back to Real-time Node Console</button>
           </div>
         </div>
@@ -305,65 +330,84 @@ export default function App() {
 
       {/* INTERACTIVE TOPOLOGY DIAGRAM OVERLAY MODAL */}
       {showArchModal && (
-        <div style={{ fixed: 'true', position: 'fixed', inset: 0, top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div style={{ position: 'fixed', inset: 0, top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div style={{ backgroundColor: '#0f1422', border: '1px solid #1e293b', borderRadius: '20px', maxWidth: '800px', width: '100%', padding: '28px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', position: 'relative' }}>
             
             {/* Modal Exit Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '14px', marginBottom: '24px' }}>
               <div>
                 <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#ffffff', margin: 0 }}>Aegis ZTNA Infrastructure Topology</h3>
-                <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0' }}>Live secure cross-origin request-response pipeline layout</p>
+                <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0' }}>Tap nodes below to view pipeline telemetry specifics</p>
               </div>
               <button 
                 onClick={() => setShowArchModal(false)}
                 style={{ background: 'transparent', border: 'none', color: '#64748b', fontSize: '20px', cursor: 'pointer', fontWeight: 'bold' }}
-                onMouseOver={e => e.target.style.color = '#ffffff'}
-                onMouseOut={e => e.target.style.color = '#64748b'}
               >
                 ✕
               </button>
             </div>
 
-            {/* Visual Distributed Node Architecture Map */}
-            <div style={{ display: 'flex', gap: '16px', alignItems: 'center', justifyContent: 'space-between', margin: '32px 0', flexWrap: 'wrap' }}>
+            {/* Visual Distributed Node Architecture Map with Active state triggers */}
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center', justifyContent: 'space-between', margin: '24px 0', flexWrap: 'wrap' }}>
               
-              {/* Client Endpoint Block */}
-              <div style={{ flex: '1 1 180px', background: '#111827', border: '1px solid #4338ca', padding: '16px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 4px 12px rgba(67, 56, 202, 0.15)' }}>
+              {/* Node 1: Client */}
+              <div 
+                className="topo-node"
+                onClick={() => setSelectedNode('client')}
+                style={{ flex: '1 1 180px', background: '#111827', border: selectedNode === 'client' ? '2px solid #818cf8' : '1px solid #4338ca', padding: '16px', borderRadius: '12px', textAlign: 'center', boxShadow: selectedNode === 'client' ? '0 0 15px rgba(129, 140, 248, 0.4)' : '0 4px 12px rgba(67, 56, 202, 0.15)' }}
+              >
                 <div style={{ fontSize: '24px', marginBottom: '6px' }}>📱</div>
                 <div style={{ fontWeight: '700', fontSize: '14px', color: '#818cf8' }}>Mobile Client App</div>
                 <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px', fontFamily: 'monospace' }}>React View State</div>
               </div>
 
-              {/* Data Vector Stream Line 1 */}
-              <div className="pulse-arrow" style={{ color: '#4338ca', fontWeight: 'bold', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '2px', userSelect: 'none' }}>──➔</div>
+              <div className="pulse-arrow" style={{ color: '#4338ca', fontWeight: 'bold', fontSize: '18px', userSelect: 'none' }}>──➔</div>
 
-              {/* Static Frontend CDN Cluster Block */}
-              <div style={{ flex: '1 1 180px', background: '#111827', border: '1px solid #065f46', padding: '16px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 4px 12px rgba(6, 95, 70, 0.15)' }}>
+              {/* Node 2: Gateway */}
+              <div 
+                className="topo-node"
+                onClick={() => setSelectedNode('gateway')}
+                style={{ flex: '1 1 180px', background: '#111827', border: selectedNode === 'gateway' ? '2px solid #34d399' : '1px solid #065f46', padding: '16px', borderRadius: '12px', textAlign: 'center', boxShadow: selectedNode === 'gateway' ? '0 0 15px rgba(52, 211, 153, 0.4)' : '0 4px 12px rgba(6, 95, 70, 0.15)' }}
+              >
                 <div style={{ fontSize: '24px', marginBottom: '6px' }}>⚡</div>
                 <div style={{ fontWeight: '700', fontSize: '14px', color: '#34d399' }}>Edge Gateway Host</div>
-                <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px', fontFamily: 'monospace' }}>Vercel Cloud Serverless</div>
+                <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px', fontFamily: 'monospace' }}>Vercel Serverless</div>
               </div>
 
-              {/* Data Vector Stream Line 2 */}
-              <div className="pulse-arrow" style={{ color: '#065f46', fontWeight: 'bold', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '2px', userSelect: 'none' }}>──➔</div>
+              <div className="pulse-arrow" style={{ color: '#065f46', fontWeight: 'bold', fontSize: '18px', userSelect: 'none' }}>──➔</div>
 
-              {/* Heavy Computing ML Engine Stack Block */}
-              <div style={{ flex: '1 1 180px', background: '#111827', border: '1px solid #92400e', padding: '16px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 4px 12px rgba(146, 64, 14, 0.15)' }}>
+              {/* Node 3: AI Inference Engine */}
+              <div 
+                className="topo-node"
+                onClick={() => setSelectedNode('engine')}
+                style={{ flex: '1 1 180px', background: '#111827', border: selectedNode === 'engine' ? '2px solid #fbbf24' : '1px solid #92400e', padding: '16px', borderRadius: '12px', textAlign: 'center', boxShadow: selectedNode === 'engine' ? '0 0 15px rgba(251, 191, 36, 0.4)' : '0 4px 12px rgba(146, 64, 14, 0.15)' }}
+              >
                 <div style={{ fontSize: '24px', marginBottom: '6px' }}>🔥</div>
                 <div style={{ fontWeight: '700', fontSize: '14px', color: '#fbbf24' }}>AI Inference Node</div>
-                <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px', fontFamily: 'monospace' }}>Flask API (Render Engine)</div>
+                <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px', fontFamily: 'monospace' }}>Flask API (Render)</div>
               </div>
 
             </div>
 
-            {/* Technical Verification Details */}
-            <div style={{ background: '#111827', border: '1px solid #1e293b', padding: '16px', borderRadius: '12px', fontSize: '12px', color: '#94a3b8', lineHeight: '1.6' }}>
-              <div style={{ marginBottom: '8px' }}>
-                <strong style={{ color: '#818cf8' }}>Handshake Pipeline Vectors:</strong> Parameters captured locally stream as asynchronous JSON objects bypassing cross-origin configuration restrictions (CORS validated) to hit decoupled multi-worker calculation endpoints.
+            {/* DYNAMIC INFORMATION SUB-PANEL: Updates dynamically based on clicked node */}
+            <div style={{ background: '#111827', border: '1px solid #1e293b', padding: '20px', borderRadius: '12px', marginTop: '20px', borderLeft: `4px solid ${selectedNode === 'client' ? '#818cf8' : selectedNode === 'gateway' ? '#34d399' : '#fbbf24'}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#ffffff' }}>
+                  {nodeDetails[selectedNode].title}
+                </h4>
+                <span style={{ fontSize: '11px', background: '#1e293b', padding: '2px 8px', borderRadius: '12px', color: '#94a3b8', fontWeight: '600', fontFamily: 'monospace' }}>
+                  {nodeDetails[selectedNode].tech}
+                </span>
               </div>
-              <div>
-                <strong style={{ color: '#fbbf24' }}>Dynamic State Isolation:</strong> Runtime computations evaluate anomalous metrics inside decoupled context trees, rendering structural decisions before writing non-volatile logs to the decentralized vault.
-              </div>
+              <p style={{ margin: 0, fontSize: '13px', color: '#94a3b8', lineHeight: '1.5' }}>
+                {nodeDetails[selectedNode].desc}
+              </p>
+            </div>
+
+            {/* Technical Footer Summary Info */}
+            <div style={{ marginTop: '20px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#475569', borderTop: '1px solid #1e293b', paddingTop: '12px' }}>
+              <Info size={14} />
+              <span>Clicking any infrastructure component above filters the telemetry analysis core tracking layout.</span>
             </div>
 
           </div>
