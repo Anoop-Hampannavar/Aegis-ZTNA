@@ -6,6 +6,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [evaluation, setEvaluation] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard'); // State to toggle pages
+  const [showArchModal, setShowArchModal] = useState(false);
   const [chainLogs, setChainLogs] = useState([
     { user: 'sys_admin', resource: 'Root DNS', time: '10 mins ago', risk: 'LOW', status: 'GRANTED', tx: '0x74a1b92c83d6a4fe91002bcedf826311' }
   ]);
@@ -281,7 +282,12 @@ export default function App() {
           </div>
         </div>
       )}
-      
+      <button 
+      onClick={() => setShowArchModal(true)}
+      className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm font-medium transition-all flex items-center gap-2 shadow-lg"
+      >
+  🗺️ View System Architecture
+</button>
     </div>
   );
 }
