@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, ShieldAlert, ShieldCheck, Activity, Database, Key, HelpCircle, Terminal, Layers, CheckCircle } from 'lucide-react';
+import { Shield, ShieldAlert, ShieldCheck, Activity, Database, Key, HelpCircle, Terminal, Layers, CheckCircle, Map } from 'lucide-react';
 
 export default function App() {
   const [inputs, setInputs] = useState({ user: 'anoop@enterprise.com', resource: 'Core Financial DB', hour: 10, delay: 130, attempts: 0 });
@@ -10,23 +10,15 @@ export default function App() {
   const [chainLogs, setChainLogs] = useState([
     { user: 'sys_admin', resource: 'Root DNS', time: '10 mins ago', risk: 'LOW', status: 'GRANTED', tx: '0x74a1b92c83d6a4fe91002bcedf826311' }
   ]);
-  // 1. Extract the base URL safely at the top of your function or right above the fetch
+
+  // Secure Environment Variable extraction with reliable fallback to your live Render instance
   const baseUrl = import.meta.env.VITE_API_URL || 'https://aegis-ztna.onrender.com';
 
-// 2. Update your fetch call to use that clean baseUrl variable
-  const response = await fetch(`${baseUrl}/api/access/evaluate`, {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(yourDataPayload) // Ensure your payload object matches your variable name
-});
   const triggerEvaluation = async () => {
     setLoading(true);
     try {
-      // Change this line:
-        // Replace your old fetch line with this smart configuration line:
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000'}/api/access/evaluate`,{
+      // Dynamic route generation targeting production cloud instances securely
+      const response = await fetch(`${baseUrl}/api/access/evaluate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(inputs)
@@ -40,29 +32,41 @@ export default function App() {
         ...prev
       ]);
     } catch (err) {
-      alert('Backend connection error. Please make sure your Python Flask server is running on port 5000.');
+      alert('Backend cluster communication timeout. Please ensure your cloud instance on Render has completed initialization and is active.');
     } finally {
       setLoading(false);
     }
   };
-  {loading ? (
-  // Display these beautiful placeholders while waiting for the Render backend
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-    <div className="shimmer-card"></div>
-    <div className="shimmer-card"></div>
-    <div className="shimmer-card"></div>
-  </div>
-) : (
-  // Your original metrics/results cards show up seamlessly here once data arrives
-  <div className="metrics-container">
-    {/* Your existing metrics mapping / code */}
-  </div>
-)}
+
   return (
     <div style={{ backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', fontFamily: 'sans-serif', padding: '32px' }}>
       
+      {/* Injecting CSS Shimmer Styles Directly into Document for clean visual compilation */}
+      <style>{`
+        @keyframes shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        .shimmer-box {
+          background: linear-gradient(90deg, #111827 25%, #1f293d 50%, #111827 75%);
+          background-size: 200% 100%;
+          animation: shimmer 1.5s infinite linear;
+          border: 1px solid #1e293b;
+          border-radius: 12px;
+          height: 140px;
+          width: 100%;
+        }
+        @keyframes pulseArrow {
+          0%, 100% { opacity: 0.3; transform: translateX(0); }
+          50% { opacity: 1; transform: translateX(4px); }
+        }
+        .pulse-arrow {
+          animation: pulseArrow 2s infinite ease-in-out;
+        }
+      `}</style>
+
       {/* Top Professional Navigation Header */}
-      <header style={{ display: 'flex', justifyContent: 'between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '20px', marginBottom: '32px' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '20px', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
         <div style={{ flexGrow: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ backgroundColor: '#3b82f6', padding: '10px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 20px rgba(59, 130, 246, 0.4)' }}>
@@ -77,8 +81,15 @@ export default function App() {
           </div>
         </div>
 
-        {/* Tab Toggle Buttons */}
-        <div style={{ display: 'flex', gap: '8px', background: '#111827', padding: '6px', borderRadius: '10px', border: '1px solid #1e293b' }}>
+        {/* Action Toggle Layout Interface */}
+        <div style={{ display: 'flex', gap: '8px', background: '#111827', padding: '6px', borderRadius: '10px', border: '1px solid #1e293b', alignItems: 'center' }}>
+          <button 
+            onClick={() => setShowArchModal(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600', background: '#1e1b4b', color: '#818cf8', marginRight: '4px', border: '1px solid #4338ca' }}
+          >
+            <Map size={16} /> Topology Map
+          </button>
+          
           <button 
             onClick={() => setActiveTab('dashboard')}
             style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600', transition: '0.2s', background: activeTab === 'dashboard' ? '#1e293b' : 'transparent', color: activeTab === 'dashboard' ? '#3b82f6' : '#94a3b8' }}
@@ -142,32 +153,41 @@ export default function App() {
                   onClick={triggerEvaluation} 
                   disabled={loading}
                   style={{ width: '100%', background: '#3b82f6', color: '#ffffff', border: 'none', padding: '12px', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', transition: '0.2s', marginTop: '8px', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.2)' }}
-                  onMouseOver={e => e.target.style.background = '#2563eb'}
-                  onMouseOut={e => e.target.style.background = '#3b82f6'}
+                  onMouseOver={e => !loading && (e.target.style.background = '#2563eb')}
+                  onMouseOut={e => !loading && (e.target.style.background = '#3b82f6')}
                 >
                   {loading ? 'Evaluating Threat Parameters...' : 'Deploy Policy Challenge Evaluation'}
                 </button>
               </div>
             </div>
 
-            {/* AI Decision Analysis Box Card */}
+            {/* AI Decision Analysis Box Card Container with Integrated Shimmer Loaders */}
             <div style={{ background: '#111827', border: '1px solid #1e293b', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)' }}>
               <div>
                 <h2 style={{ fontSize: '16px', fontWeight: '700', marginTop: '0', marginBottom: '20px', color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #1e293b', paddingBottom: '12px' }}>
                   <Key size={18} color="#10b981" /> AI Engine Interception Terminal
                 </h2>
 
-                {evaluation ? (
+                {loading ? (
+                  /* Dynamic Shimmer Placeholder Engine Loading State Layout */
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div className="shimmer-box" style={{ height: '125px' }}></div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div className="shimmer-box" style={{ height: '65px' }}></div>
+                      <div className="shimmer-box" style={{ height: '65px' }}></div>
+                    </div>
+                  </div>
+                ) : evaluation ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     <div style={{ backgroundColor: evaluation.riskLevel === 'LOW' ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)', border: evaluation.riskLevel === 'LOW' ? '1px solid #10b981' : '1px solid #ef4444', padding: '24px', borderRadius: '12px', textAlign: 'center' }}>
                       {evaluation.riskLevel === 'LOW' ? (
                         <div>
-                          <ShieldCheck size={54} color="#10b981" style={{ marginBottom: '10px' }} />
+                          <ShieldCheck size={54} color="#10b981" style={{ margin: '0 auto 10px auto' }} />
                           <div style={{ color: '#10b981', fontWeight: '800', fontSize: '18px', letterSpacing: '0.05em' }}>ACCESS SECURITY CLEARED</div>
                         </div>
                       ) : (
                         <div>
-                          <ShieldAlert size={54} color="#ef4444" style={{ marginBottom: '10px' }} />
+                          <ShieldAlert size={54} color="#ef4444" style={{ margin: '0 auto 10px auto' }} />
                           <div style={{ color: '#ef4444', fontWeight: '800', fontSize: '18px', letterSpacing: '0.05em' }}>ACCESS INTERCEPTED / BLOCKED</div>
                         </div>
                       )}
@@ -176,22 +196,22 @@ export default function App() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                       <div style={{ background: '#090d16', padding: '14px', borderRadius: '8px', border: '1px solid #1e293b', textAlign: 'center' }}>
                         <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>AI Inference Matrix</div>
-                        <div style={{ fontSize: '18px', fontWeight: '800', mt: '4px', color: evaluation.riskLevel === 'LOW' ? '#10b981' : '#ef4444' }}>{evaluation.riskLevel} RISK</div>
+                        <div style={{ fontSize: '18px', fontWeight: '800', marginTop: '4px', color: evaluation.riskLevel === 'LOW' ? '#10b981' : '#ef4444' }}>{evaluation.riskLevel} RISK</div>
                       </div>
                       <div style={{ background: '#090d16', padding: '14px', borderRadius: '8px', border: '1px solid #1e293b', textAlign: 'center' }}>
                         <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Enforced Action Policy</div>
-                        <div style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: '700', mt: '6px', color: '#f1f5f9' }}>{evaluation.status}</div>
+                        <div style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: '700', marginTop: '6px', color: '#f1f5f9' }}>{evaluation.status}</div>
                       </div>
                     </div>
                   </div>
                 ) : (
                   <div style={{ textAlign: 'center', color: '#475569', padding: '60px 20px', fontSize: '14px' }}>
-                    <Activity size={32} style={{ marginBottom: '12px', opacity: '0.3' }} />
+                    <Activity size={32} style={{ margin: '0 auto 12px auto', opacity: '0.3', display: 'block' }} />
                     <div>Awaiting streaming evaluation signals... Move parameters and dispatch the evaluation execution button.</div>
                   </div>
                 )}
               </div>
-              <div style={{ fontSize: '10px', color: '#475569', borderTop: '1px solid #1e293b', pt: '12px', marginTop: '16px', fontFamily: 'monospace' }}>
+              <div style={{ fontSize: '10px', color: '#475569', borderTop: '1px solid #1e293b', paddingTop: '12px', marginTop: '16px', fontFamily: 'monospace' }}>
                 Anomaly Detection Model: Isolation Forest Core Baseline Profile (Contamination Rate: 15%)
               </div>
             </div>
@@ -282,12 +302,74 @@ export default function App() {
           </div>
         </div>
       )}
-      <button 
-      onClick={() => setShowArchModal(true)}
-      className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm font-medium transition-all flex items-center gap-2 shadow-lg"
-      >
-  🗺️ View System Architecture
-</button>
+
+      {/* INTERACTIVE TOPOLOGY DIAGRAM OVERLAY MODAL */}
+      {showArchModal && (
+        <div style={{ fixed: 'true', position: 'fixed', inset: 0, top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ backgroundColor: '#0f1422', border: '1px solid #1e293b', borderRadius: '20px', maxWidth: '800px', width: '100%', padding: '28px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', position: 'relative' }}>
+            
+            {/* Modal Exit Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '14px', marginBottom: '24px' }}>
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#ffffff', margin: 0 }}>Aegis ZTNA Infrastructure Topology</h3>
+                <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0' }}>Live secure cross-origin request-response pipeline layout</p>
+              </div>
+              <button 
+                onClick={() => setShowArchModal(false)}
+                style={{ background: 'transparent', border: 'none', color: '#64748b', fontSize: '20px', cursor: 'pointer', fontWeight: 'bold' }}
+                onMouseOver={e => e.target.style.color = '#ffffff'}
+                onMouseOut={e => e.target.style.color = '#64748b'}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Visual Distributed Node Architecture Map */}
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center', justifyContent: 'space-between', margin: '32px 0', flexWrap: 'wrap' }}>
+              
+              {/* Client Endpoint Block */}
+              <div style={{ flex: '1 1 180px', background: '#111827', border: '1px solid #4338ca', padding: '16px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 4px 12px rgba(67, 56, 202, 0.15)' }}>
+                <div style={{ fontSize: '24px', marginBottom: '6px' }}>📱</div>
+                <div style={{ fontWeight: '700', fontSize: '14px', color: '#818cf8' }}>Mobile Client App</div>
+                <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px', fontFamily: 'monospace' }}>React View State</div>
+              </div>
+
+              {/* Data Vector Stream Line 1 */}
+              <div className="pulse-arrow" style={{ color: '#4338ca', fontWeight: 'bold', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '2px', userSelect: 'none' }}>──➔</div>
+
+              {/* Static Frontend CDN Cluster Block */}
+              <div style={{ flex: '1 1 180px', background: '#111827', border: '1px solid #065f46', padding: '16px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 4px 12px rgba(6, 95, 70, 0.15)' }}>
+                <div style={{ fontSize: '24px', marginBottom: '6px' }}>⚡</div>
+                <div style={{ fontWeight: '700', fontSize: '14px', color: '#34d399' }}>Edge Gateway Host</div>
+                <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px', fontFamily: 'monospace' }}>Vercel Cloud Serverless</div>
+              </div>
+
+              {/* Data Vector Stream Line 2 */}
+              <div className="pulse-arrow" style={{ color: '#065f46', fontWeight: 'bold', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '2px', userSelect: 'none' }}>──➔</div>
+
+              {/* Heavy Computing ML Engine Stack Block */}
+              <div style={{ flex: '1 1 180px', background: '#111827', border: '1px solid #92400e', padding: '16px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 4px 12px rgba(146, 64, 14, 0.15)' }}>
+                <div style={{ fontSize: '24px', marginBottom: '6px' }}>🔥</div>
+                <div style={{ fontWeight: '700', fontSize: '14px', color: '#fbbf24' }}>AI Inference Node</div>
+                <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px', fontFamily: 'monospace' }}>Flask API (Render Engine)</div>
+              </div>
+
+            </div>
+
+            {/* Technical Verification Details */}
+            <div style={{ background: '#111827', border: '1px solid #1e293b', padding: '16px', borderRadius: '12px', fontSize: '12px', color: '#94a3b8', lineHeight: '1.6' }}>
+              <div style={{ marginBottom: '8px' }}>
+                <strong style={{ color: '#818cf8' }}>Handshake Pipeline Vectors:</strong> Parameters captured locally stream as asynchronous JSON objects bypassing cross-origin configuration restrictions (CORS validated) to hit decoupled multi-worker calculation endpoints.
+              </div>
+              <div>
+                <strong style={{ color: '#fbbf24' }}>Dynamic State Isolation:</strong> Runtime computations evaluate anomalous metrics inside decoupled context trees, rendering structural decisions before writing non-volatile logs to the decentralized vault.
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+      
     </div>
   );
 }
