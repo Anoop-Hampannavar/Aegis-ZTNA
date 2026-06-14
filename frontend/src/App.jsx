@@ -44,7 +44,19 @@ export default function App() {
       setLoading(false);
     }
   };
-
+  {loading ? (
+  // Display these beautiful placeholders while waiting for the Render backend
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="shimmer-card"></div>
+    <div className="shimmer-card"></div>
+    <div className="shimmer-card"></div>
+  </div>
+) : (
+  // Your original metrics/results cards show up seamlessly here once data arrives
+  <div className="metrics-container">
+    {/* Your existing metrics mapping / code */}
+  </div>
+)}
   return (
     <div style={{ backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', fontFamily: 'sans-serif', padding: '32px' }}>
       
