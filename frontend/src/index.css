@@ -8,3 +8,20 @@ body {
   color: #f8fafc;
   font-family: system-ui, -apple-system, sans-serif;
 }
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer-card {
+  background: linear-gradient(90deg, #1e1e2f 25%, #2d2d44 50%, #1e1e2f 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+  border-radius: 8px;
+  height: 100px; /* Adjust based on your card sizes */
+  width: 100%;
+}
