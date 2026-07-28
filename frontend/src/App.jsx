@@ -7,7 +7,7 @@ export default function AegisZTNADashboard() {
   const [identity, setIdentity] = useState('anoop@enterprise.com');
   const [passphrase, setPassphrase] = useState('');
   const [keyTimes, setKeyTimes] = useState([]);
-  const [cadence, setCadence] = useState(190);
+  const [cadence, setCadence] = useState(0);
   
   // Modals for Header Controls
   const [showTopology, setShowTopology] = useState(false);
@@ -18,10 +18,11 @@ export default function AegisZTNADashboard() {
   const [selectedFile, setSelectedFile] = useState('Confidential_Enterprise_Report.txt');
   const [uploading, setUploading] = useState(false);
 
-  // Context Signals
+  // Real-Time Context Signals
   const [currentHour, setCurrentHour] = useState(new Date().getHours());
   const [violationCount, setViolationCount] = useState(0);
-  const [clientIp, setClientIp] = useState('127.0.0.1');
+  const [clientIp, setClientIp] = useState('Detecting...');
+  const [deviceAgent, setDeviceAgent] = useState('Detecting...');
 
   // Evaluation Output States
   const [evaluating, setEvaluating] = useState(false);
@@ -31,6 +32,15 @@ export default function AegisZTNADashboard() {
 
   useEffect(() => {
     fetchVaultFiles();
+    
+    // Fetch Real Public IP Address
+    fetch('https://api.ipify.org?format=json')
+      .then(res => res.json())
+      .then(data => setClientIp(data.ip))
+      .catch(() => setClientIp('NETWORK_UNAVAILABLE'));
+      
+    // Fetch Real Device Posture
+    setDeviceAgent(navigator.userAgent.split(' ')[0] + ' / ' + navigator.platform);
   }, []);
 
   const fetchVaultFiles = async () => {
@@ -39,7 +49,9 @@ export default function AegisZTNADashboard() {
       const data = await res.json();
       if (data.files && data.files.length > 0) {
         setVaultFiles(data.files);
-        setSelectedFile(data.files[0]);
+        if (!vaultFiles.includes(selectedFile)) {
+            setSelectedFile(data.files[0]);
+        }
       }
     } catch (e) {
       console.log("Backend loading...");
@@ -63,17 +75,28 @@ export default function AegisZTNADashboard() {
         alert(`File '${file.name}' uploaded to Protected Vault!`);
         await fetchVaultFiles();
         setSelectedFile(file.name);
+      } else {
+        alert("Upload rejected by ZTNA Gateway constraints.");
       }
     } catch (err) {
-      alert("Upload error: Check backend deployment.");
+      alert("Upload error: Check backend deployment status.");
     } finally {
       setUploading(false);
     }
   };
 
-  const handleKeyDown = () => {
+  // REAL-TIME BEHAVIORAL BIOMETRICS (Fixed Cadence Tracking)
+  const handleKeyDown = (e) => {
+    // Ignore control keys to keep cadence calculation pure
+    if (e.key === 'Backspace' || e.key === 'Delete' || e.key === 'Shift') return;
+    
     const now = performance.now();
     setKeyTimes((prev) => {
+      // If user paused for more than 1.5 seconds, reset the tracking array for a fresh burst
+      if (prev.length > 0 && now - prev[prev.length - 1] > 1500) {
+        return [now];
+      }
+      
       const updated = [...prev, now];
       if (updated.length > 1) {
         const intervals = [];
@@ -85,6 +108,15 @@ export default function AegisZTNADashboard() {
       }
       return updated;
     });
+  };
+
+  const handlePassphraseChange = (e) => {
+    setPassphrase(e.target.value);
+    // Explicitly reset metrics if user clears the box
+    if (e.target.value === '') {
+      setKeyTimes([]);
+      setCadence(0);
+    }
   };
 
   const handleEvaluate = async () => {
@@ -106,9 +138,9 @@ export default function AegisZTNADashboard() {
 
       const aiData = await res.json();
       setEvalResult(aiData);
-      setClientIp(aiData.client_ip);
 
-      let realTxHash = "0x" + Math.random().toString(16).substr(2, 40);
+      // STRICT WEB3 BLOCKCHAIN ENFORCEMENT (No Fake Data)
+      let realTxHash = "";
       try {
         const rpcRes = await fetch('http://127.0.0.1:8545', {
           method: 'POST',
@@ -117,7 +149,7 @@ export default function AegisZTNADashboard() {
             jsonrpc: "2.0",
             method: "eth_sendTransaction",
             params: [{
-              from: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+              from: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", // Hardhat Default Account #0
               to: CONTRACT_ADDRESS,
               data: "0x"
             }],
@@ -127,9 +159,11 @@ export default function AegisZTNADashboard() {
         const rpcData = await rpcRes.json();
         if (rpcData.result) {
           realTxHash = rpcData.result;
+        } else {
+          realTxHash = "FAILED: SMART_CONTRACT_REJECTED";
         }
       } catch (err) {
-        console.log("Local node fallback...");
+        realTxHash = "FAILED: LOCAL_NODE_OFFLINE";
       }
 
       const newLog = {
@@ -146,7 +180,7 @@ export default function AegisZTNADashboard() {
       }
 
     } catch (err) {
-      alert("Error: Backend server API is offline.");
+      alert("Critical Error: Core AI Engine is offline.");
     } finally {
       setEvaluating(false);
     }
@@ -236,7 +270,7 @@ export default function AegisZTNADashboard() {
               type="text"
               value={passphrase}
               onKeyDown={handleKeyDown}
-              onChange={(e) => setPassphrase(e.target.value)}
+              onChange={handlePassphraseChange}
               placeholder="Type here to capture live typing cadence..."
               style={{ width: '100%', backgroundColor: '#0e1626', border: '1px solid #334155', borderRadius: '8px', padding: '10px', color: '#ffffff', fontSize: '14px', boxSizing: 'border-box' }}
             />
@@ -298,7 +332,8 @@ export default function AegisZTNADashboard() {
                 </div>
 
                 <div style={{ backgroundColor: '#070b14', padding: '16px', borderRadius: '12px', border: '1px solid #1e293b', fontSize: '12px', fontFamily: 'monospace', color: '#cbd5e1', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div><span style={{ color: '#64748b' }}>Client Address:</span> {clientIp}</div>
+                  <div><span style={{ color: '#64748b' }}>Client IPv4 Address:</span> <span style={{ color: '#38bdf8' }}>{clientIp}</span></div>
+                  <div><span style={{ color: '#64748b' }}>Device Posture:</span> <span style={{ color: '#38bdf8' }}>{deviceAgent}</span></div>
                   <div><span style={{ color: '#64748b' }}>Decision Reason:</span> {evalResult.reason}</div>
                   <div><span style={{ color: '#64748b' }}>Target File Node:</span> {evalResult.target_resource}</div>
                 </div>
@@ -364,8 +399,8 @@ export default function AegisZTNADashboard() {
                   <td style={{ padding: '12px 0', fontWeight: 'bold', color: log.status === 'GRANTED' ? '#34d399' : '#f43f5e' }}>
                     {log.status}
                   </td>
-                  <td style={{ padding: '12px 0', color: '#818cf8' }}>
-                    {log.txHash.substring(0, 32)}...
+                  <td style={{ padding: '12px 0', color: log.txHash.startsWith('FAILED') ? '#f43f5e' : '#818cf8' }}>
+                    {log.txHash.startsWith('FAILED') ? log.txHash : `${log.txHash.substring(0, 32)}...`}
                   </td>
                 </tr>
               ))}
@@ -376,7 +411,7 @@ export default function AegisZTNADashboard() {
 
       {/* TOPOLOGY MAP MODAL */}
       {showTopology && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', items: 'center', justifyContent: 'center', zIndex: 1000 }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: '#0e1626', border: '1px solid #334155', borderRadius: '16px', padding: '32px', maxWidth: '600px', width: '90%', color: '#f1f5f9' }}>
             <h3 style={{ fontSize: '18px', color: '#818cf8', marginTop: 0 }}>🗺️ ZTNA System Network Topology</h3>
             <div style={{ fontFamily: 'monospace', fontSize: '12px', backgroundColor: '#070b14', padding: '16px', borderRadius: '8px', color: '#34d399', lineHeight: '1.8' }}>
@@ -406,7 +441,7 @@ export default function AegisZTNADashboard() {
 
       {/* HOW IT WORKS MODAL */}
       {showHowItWorks && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', items: 'center', justifyContent: 'center', zIndex: 1000 }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: '#0e1626', border: '1px solid #334155', borderRadius: '16px', padding: '32px', maxWidth: '600px', width: '90%', color: '#f1f5f9' }}>
             <h3 style={{ fontSize: '18px', color: '#818cf8', marginTop: 0 }}>❓ How Aegis ZTNA Architecture Works</h3>
             <ul style={{ fontSize: '13px', lineHeight: '1.7', color: '#cbd5e1', paddingLeft: '20px' }}>
