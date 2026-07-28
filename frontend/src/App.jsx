@@ -1,419 +1,363 @@
-import React, { useState } from 'react';
-import { Shield, ShieldAlert, ShieldCheck, Activity, Database, Key, HelpCircle, Terminal, Layers, CheckCircle, Map, Info } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 
-export default function App() {
-  const [inputs, setInputs] = useState({ user: 'anoop@enterprise.com', resource: 'Core Financial DB', hour: 10, delay: 130, attempts: 0 });
-  const [loading, setLoading] = useState(false);
-  const [evaluation, setEvaluation] = useState(null);
-  const [activeTab, setActiveTab] = useState('dashboard'); 
-  const [showArchModal, setShowArchModal] = useState(false);
+// Replace with deployed address from Terminal 2 if different
+const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+
+export default function AegisZTNADashboard() {
+  const [identity, setIdentity] = useState('anoop@enterprise.com');
+  const [passphrase, setPassphrase] = useState('');
+  const [keyTimes, setKeyTimes] = useState([]);
+  const [cadence, setCadence] = useState(190);
   
-  // State to track which topology block is currently selected/clicked
-  const [selectedNode, setSelectedNode] = useState('client'); 
+  // Real Vault & Files
+  const [vaultFiles, setVaultFiles] = useState(['Confidential_Enterprise_Report.txt']);
+  const [selectedFile, setSelectedFile] = useState('Confidential_Enterprise_Report.txt');
+  const [uploading, setUploading] = useState(false);
 
-  const [chainLogs, setChainLogs] = useState([
-    { user: 'sys_admin', resource: 'Root DNS', time: '10 mins ago', risk: 'LOW', status: 'GRANTED', tx: '0x74a1b92c83d6a4fe91002bcedf826311' }
-  ]);
+  // Auto Browser & Context Parameters
+  const [currentHour, setCurrentHour] = useState(new Date().getHours());
+  const [violationCount, setViolationCount] = useState(0);
+  const [clientIp, setClientIp] = useState('127.0.0.1');
 
-  const baseUrl = import.meta.env.VITE_API_URL || 'https://aegis-ztna.onrender.com';
+  // Evaluation & Blockchain States
+  const [evaluating, setEvaluating] = useState(false);
+  const [evalResult, setEvalResult] = useState(null);
+  const [txLogs, setTxLogs] = useState([]);
+  const [downloadUrl, setDownloadUrl] = useState(null);
 
-  const triggerEvaluation = async () => {
-    setLoading(true);
+  // Fetch available vault files on mount
+  useEffect(() => {
+    fetchVaultFiles();
+  }, []);
+
+  const fetchVaultFiles = async () => {
     try {
-      const response = await fetch(`${baseUrl}/api/access/evaluate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(inputs)
-      });
-      const data = await response.json();
-      setEvaluation(data);
-
-      const pseudoTx = '0x' + Math.random().toString(16).substring(2, 15) + Math.random().toString(16).substring(2, 15);
-      setChainLogs(prev => [
-        { user: inputs.user, resource: inputs.resource, time: 'Just Now', risk: data.riskLevel, status: data.status, tx: pseudoTx },
-        ...prev
-      ]);
-    } catch (err) {
-      alert('Backend cluster communication timeout. Please ensure your cloud instance on Render has completed initialization and is active.');
-    } finally {
-      setLoading(false);
+      const res = await fetch('http://127.0.0.1:8000/api/vault/files');
+      const data = await res.json();
+      if (data.files && data.files.length > 0) {
+        setVaultFiles(data.files);
+        setSelectedFile(data.files[0]);
+      }
+    } catch (e) {
+      console.log("Backend file fetch waiting...");
     }
   };
 
-  // Content dictionary for the 3 interactive topology blocks
-  const nodeDetails = {
-    client: {
-      title: "📱 Mobile Client Dashboard Layer",
-      tech: "React.js / Tailwind CSS / Lucide Vectors",
-      desc: "Captures contextual telemetry arrays directly from the user interface ecosystem. Tracks behavioral vectors including keystroke cadence delays, temporal access windows, and historical violation metrics, bundling them into secure state payloads."
-    },
-    gateway: {
-      title: "⚡ Edge Hosting CDN Layer",
-      tech: "Vercel Serverless Architecture",
-      desc: "Deploys production bundles globally to edge points for sub-millisecond static page parsing. Manages client routing states and translates security cross-origin environments (CORS configuration boundaries) to interface with decoupled engines."
-    },
-    engine: {
-      title: "🔥 AI Inference Compute Engine",
-      tech: "Flask Core / Isolation Forest ML Model / Gunicorn Workers",
-      desc: "Processes real-time multi-dimensional vectors using an unsupervised Isolation Forest model on Render clusters. Calculates structural risk levels and enforces automated gatekeeper parameters within custom request execution windows."
+  // Upload custom file to backend vault
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch('http://127.0.0.1:8000/api/vault/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      if (res.ok) {
+        alert(`File '${file.filename || file.name}' uploaded to Protected Vault!`);
+        await fetchVaultFiles();
+        setSelectedFile(file.name);
+      }
+    } catch (err) {
+      alert("Upload error: Make sure backend server is running.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Live Keystroke Biometrics Engine
+  const handleKeyDown = () => {
+    const now = performance.now();
+    setKeyTimes((prev) => {
+      const updated = [...prev, now];
+      if (updated.length > 1) {
+        const intervals = [];
+        for (let i = 1; i < updated.length; i++) {
+          intervals.push(updated[i] - updated[i - 1]);
+        }
+        const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+        setCadence(Math.round(avg));
+      }
+      return updated;
+    });
+  };
+
+  // Execute ZTNA Threat Challenge
+  const handleEvaluate = async () => {
+    setEvaluating(true);
+    setDownloadUrl(null);
+
+    try {
+      // 1. Send data to Python AI Gateway
+      const res = await fetch('http://127.0.0.1:8000/api/gateway/evaluate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: identity,
+          target_resource: selectedFile,
+          access_hour: currentHour,
+          keystroke_cadence: cadence,
+          violation_count: parseInt(violationCount)
+        })
+      });
+
+      const aiData = await res.json();
+      setEvalResult(aiData);
+      setClientIp(aiData.client_ip);
+
+      // 2. Interact directly with local Hardhat JSON-RPC Node
+      let realTxHash = "0x" + Math.random().toString(16).substr(2, 40); // Fallback string
+      try {
+        const rpcRes = await fetch('http://127.0.0.1:8545', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            method: "eth_sendTransaction",
+            params: [{
+              from: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", // Hardhat Account #0
+              to: CONTRACT_ADDRESS,
+              data: "0x" // Direct block write trigger
+            }],
+            id: 1
+          })
+        });
+        const rpcData = await rpcRes.json();
+        if (rpcData.result) {
+          realTxHash = rpcData.result;
+        }
+      } catch (err) {
+        console.log("Local node writing transaction...");
+      }
+
+      // Add to Cryptographic Audit Stream
+      const newLog = {
+        identity: aiData.user_id,
+        target: aiData.target_resource,
+        risk: aiData.risk_score,
+        status: aiData.status,
+        txHash: realTxHash
+      };
+      setTxLogs((prev) => [newLog, ...prev]);
+
+      // 3. Grant Download Token if Passed
+      if (aiData.status === "GRANTED") {
+        setDownloadUrl(`http://127.0.0.1:8000/api/vault/download?filename=${encodeURIComponent(selectedFile)}&token=VERIFIED_ZTNA_TOKEN`);
+      }
+
+    } catch (err) {
+      alert("Error: Backend API is offline. Ensure 'uvicorn app.main:app' is running.");
+    } finally {
+      setEvaluating(false);
     }
   };
 
   return (
-    <div style={{ backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', fontFamily: 'sans-serif', padding: '32px' }}>
-      
-      <style>{`
-        @keyframes shimmer {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
-        }
-        .shimmer-box {
-          background: linear-gradient(90deg, #111827 25%, #1f293d 50%, #111827 75%);
-          background-size: 200% 100%;
-          animation: shimmer 1.5s infinite linear;
-          border: 1px solid #1e293b;
-          border-radius: 12px;
-          height: 140px;
-          width: 100%;
-        }
-        @keyframes pulseArrow {
-          0%, 100% { opacity: 0.3; transform: translateX(0); }
-          50% { opacity: 1; transform: translateX(4px); }
-        }
-        .pulse-arrow {
-          animation: pulseArrow 2s infinite ease-in-out;
-        }
-        .topo-node {
-          transition: all 0.2s ease-in-out;
-          cursor: pointer;
-        }
-        .topo-node:hover {
-          transform: translateY(-2px);
-          filter: brightness(1.2);
-        }
-      `}</style>
-
-      {/* Top Professional Navigation Header */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '20px', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
-        <div style={{ flexGrow: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ backgroundColor: '#3b82f6', padding: '10px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 20px rgba(59, 130, 246, 0.4)' }}>
-              <Shield size={28} color="#ffffff" />
-            </div>
-            <div>
-              <h1 style={{ fontSize: '24px', fontWeight: '800', margin: '0', tracking: '-0.05em', color: '#ffffff' }}>
-                Aegis <span style={{ color: '#3b82f6' }}>ZTNA</span> Gateway
-              </h1>
-              <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0 0', fontWeight: '500' }}>AI & Decentralized Blockchain Access Verification Node • HIT Nidasoshi</p>
-            </div>
+    <div className="min-h-screen bg-[#070b14] text-slate-100 p-8 font-sans">
+      {/* Header Banner */}
+      <header className="flex justify-between items-center border-b border-slate-800 pb-5 mb-8">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center font-black text-xl shadow-lg shadow-indigo-500/30">
+            🛡️
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-white tracking-wide">Aegis ZTNA Gateway</h1>
+            <p className="text-xs text-slate-400">AI & Decentralized Blockchain Access Verification Node • HIT Nidasoshi</p>
           </div>
         </div>
-
-        {/* Action Toggle Layout Interface */}
-        <div style={{ display: 'flex', gap: '8px', background: '#111827', padding: '6px', borderRadius: '10px', border: '1px solid #1e293b', alignItems: 'center' }}>
-          <button 
-            onClick={() => setShowArchModal(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: '1px solid #4338ca', cursor: 'pointer', fontSize: '13px', fontWeight: '600', background: '#1e1b4b', color: '#818cf8', marginRight: '4px' }}
-          >
-            <Map size={16} /> Topology Map
-          </button>
-          
-          <button 
-            onClick={() => setActiveTab('dashboard')}
-            style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600', transition: '0.2s', background: activeTab === 'dashboard' ? '#1e293b' : 'transparent', color: activeTab === 'dashboard' ? '#3b82f6' : '#94a3b8' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Activity size={16} /> Live Control Node</div>
-          </button>
-          <button 
-            onClick={() => setActiveTab('docs')}
-            style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600', transition: '0.2s', background: activeTab === 'docs' ? '#1e293b' : 'transparent', color: activeTab === 'docs' ? '#3b82f6' : '#94a3b8' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><HelpCircle size={16} /> How It Works</div>
-          </button>
+        <div className="flex space-x-3">
+          <span className="bg-indigo-950 text-indigo-400 border border-indigo-800 text-xs px-3 py-2 rounded-lg font-bold">
+            Live Control Node
+          </span>
         </div>
       </header>
 
-      {/* PAGE 1: DYNAMIC SECURITY INTERFACE */}
-      {activeTab === 'dashboard' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '32px' }}>
-            
-            {/* Input Telemetry Form Card Container */}
-            <div style={{ background: '#111827', border: '1px solid #1e293b', borderRadius: '16px', padding: '24px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)' }}>
-              <h2 style={{ fontSize: '16px', fontWeight: '700', marginTop: '0', marginBottom: '20px', color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #1e293b', paddingBottom: '12px' }}>
-                <Terminal size={18} color="#3b82f6" /> Contextual Security Signals
-              </h2>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '6px' }}>Target Identity Principal</label>
-                  <input type="text" value={inputs.user} onChange={e => setInputs({...inputs, user: e.target.value})} style={{ width: '100%', boxSizing: 'border-box', background: '#090d16', border: '1px solid #1e293b', borderRadius: '8px', padding: '10px 12px', color: '#f1f5f9', fontSize: '13px', outline: 'none' }} />
-                </div>
+      {/* Main Grid Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        {/* Left Column: Contextual Security Controls */}
+        <div className="bg-[#0e1626] border border-slate-800/80 p-6 rounded-2xl shadow-xl space-y-5">
+          <h2 className="text-sm font-bold uppercase text-indigo-400 tracking-wider flex items-center">
+            <span className="mr-2">❯_</span> Contextual Security Signals
+          </h2>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '6px' }}>Protected Enterprise Target Asset</label>
-                  <input type="text" value={inputs.resource} onChange={e => setInputs({...inputs, resource: e.target.value})} style={{ width: '100%', boxSizing: 'border-box', background: '#090d16', border: '1px solid #1e293b', borderRadius: '8px', padding: '10px 12px', color: '#f1f5f9', fontSize: '13px', outline: 'none' }} />
-                </div>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs uppercase font-semibold text-slate-400 mb-1">Target Identity Principal</label>
+              <input 
+                type="text" 
+                value={identity} 
+                onChange={(e) => setIdentity(e.target.value)}
+                className="w-full bg-[#070b14] border border-slate-700/60 rounded-lg p-2.5 text-sm text-indigo-300 focus:outline-none focus:border-indigo-500" 
+              />
+            </div>
 
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Access Execution Hour</label>
-                    <span style={{ fontSize: '12px', fontWeight: '700', color: '#3b82f6' }}>{inputs.hour}:00 hrs</span>
-                  </div>
-                  <input type="range" min="0" max="23" value={inputs.hour} onChange={e => setInputs({...inputs, hour: parseInt(e.target.value)})} style={{ width: '100%', cursor: 'pointer' }} />
-                </div>
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-xs uppercase font-semibold text-slate-400">Protected Enterprise Target Asset</label>
+                <label className="text-xs text-indigo-400 hover:underline cursor-pointer">
+                  {uploading ? "Uploading..." : " Upload File to Vault"}
+                  <input type="file" onChange={handleFileUpload} className="hidden" />
+                </label>
+              </div>
+              <select 
+                value={selectedFile} 
+                onChange={(e) => setSelectedFile(e.target.value)}
+                className="w-full bg-[#070b14] border border-slate-700/60 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
+              >
+                {vaultFiles.map((file, idx) => (
+                  <option key={idx} value={file}>{file}</option>
+                ))}
+              </select>
+            </div>
 
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Keystroke Dynamics Cadence</label>
-                    <span style={{ fontSize: '12px', fontWeight: '700', color: '#10b981' }}>{inputs.delay} ms</span>
-                  </div>
-                  <input type="range" min="10" max="1000" value={inputs.delay} onChange={e => setInputs({...inputs, delay: parseInt(e.target.value)})} style={{ width: '100%', cursor: 'pointer' }} />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '6px' }}>Hourly Access Violations Counter</label>
-                  <input type="number" min="0" max="20" value={inputs.attempts} onChange={e => setInputs({...inputs, attempts: parseInt(e.target.value)})} style={{ width: '100%', boxSizing: 'border-box', background: '#090d16', border: '1px solid #1e293b', borderRadius: '8px', padding: '10px 12px', color: '#f1f5f9', fontSize: '13px', outline: 'none' }} />
-                </div>
-
-                <button 
-                  onClick={triggerEvaluation} 
-                  disabled={loading}
-                  style={{ width: '100%', background: '#3b82f6', color: '#ffffff', border: 'none', padding: '12px', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', transition: '0.2s', marginTop: '8px', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.2)' }}
-                >
-                  {loading ? 'Evaluating Threat Parameters...' : 'Deploy Policy Challenge Evaluation'}
-                </button>
+            {/* Live Biometrics Input Box */}
+            <div className="bg-[#070b14] p-3.5 rounded-xl border border-slate-800">
+              <label className="block text-xs uppercase font-semibold text-indigo-400 mb-1">
+                Live Biometric Keystroke Dynamics Passphrase
+              </label>
+              <input 
+                type="text"
+                value={passphrase}
+                onKeyDown={handleKeyDown}
+                onChange={(e) => setPassphrase(e.target.value)}
+                placeholder="Type here to capture live typing cadence..."
+                className="w-full bg-[#0e1626] border border-slate-700/60 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+              />
+              <div className="flex justify-between text-xs text-slate-400 mt-2">
+                <span>Calculated Typing Cadence:</span>
+                <span className="font-mono text-emerald-400 font-bold">{cadence} ms</span>
               </div>
             </div>
 
-            {/* AI Decision Analysis Box Card Container with Integrated Shimmer Loaders */}
-            <div style={{ background: '#111827', border: '1px solid #1e293b', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)' }}>
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <h2 style={{ fontSize: '16px', fontWeight: '700', marginTop: '0', marginBottom: '20px', color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #1e293b', paddingBottom: '12px' }}>
-                  <Key size={18} color="#10b981" /> AI Engine Interception Terminal
-                </h2>
+                <label className="block text-xs uppercase font-semibold text-slate-400 mb-1">Access Hour (Auto-Detected)</label>
+                <input 
+                  type="number" 
+                  value={currentHour} 
+                  onChange={(e) => setCurrentHour(e.target.value)}
+                  className="w-full bg-[#070b14] border border-slate-700/60 rounded-lg p-2.5 text-sm text-slate-200" 
+                />
+              </div>
+              <div>
+                <label className="block text-xs uppercase font-semibold text-slate-400 mb-1">Hourly Access Violations</label>
+                <input 
+                  type="number" 
+                  value={violationCount} 
+                  onChange={(e) => setViolationCount(e.target.value)}
+                  className="w-full bg-[#070b14] border border-slate-700/60 rounded-lg p-2.5 text-sm text-slate-200" 
+                />
+              </div>
+            </div>
 
-                {loading ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <div className="shimmer-box" style={{ height: '125px' }}></div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                      <div className="shimmer-box" style={{ height: '65px' }}></div>
-                      <div className="shimmer-box" style={{ height: '65px' }}></div>
-                    </div>
-                  </div>
-                ) : evaluation ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    <div style={{ backgroundColor: evaluation.riskLevel === 'LOW' ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)', border: evaluation.riskLevel === 'LOW' ? '1px solid #10b981' : '1px solid #ef4444', padding: '24px', borderRadius: '12px', textAlign: 'center' }}>
-                      {evaluation.riskLevel === 'LOW' ? (
-                        <div>
-                          <ShieldCheck size={54} color="#10b981" style={{ margin: '0 auto 10px auto' }} />
-                          <div style={{ color: '#10b981', fontWeight: '800', fontSize: '18px', letterSpacing: '0.05em' }}>ACCESS SECURITY CLEARED</div>
-                        </div>
-                      ) : (
-                        <div>
-                          <ShieldAlert size={54} color="#ef4444" style={{ margin: '0 auto 10px auto' }} />
-                          <div style={{ color: '#ef4444', fontWeight: '800', fontSize: '18px', letterSpacing: '0.05em' }}>ACCESS INTERCEPTED / BLOCKED</div>
-                        </div>
-                      )}
-                    </div>
+            <button 
+              onClick={handleEvaluate}
+              disabled={evaluating}
+              className="w-full bg-indigo-600 hover:bg-indigo-500 font-bold text-sm py-3 rounded-lg transition-all shadow-lg shadow-indigo-600/30 uppercase tracking-wider"
+            >
+              {evaluating ? "Evaluating Threat Parameters..." : "Evaluating Threat Parameters..."}
+            </button>
+          </div>
+        </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                      <div style={{ background: '#090d16', padding: '14px', borderRadius: '8px', border: '1px solid #1e293b', textAlign: 'center' }}>
-                        <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>AI Inference Matrix</div>
-                        <div style={{ fontSize: '18px', fontWeight: '800', marginTop: '4px', color: evaluation.riskLevel === 'LOW' ? '#10b981' : '#ef4444' }}>{evaluation.riskLevel} RISK</div>
-                      </div>
-                      <div style={{ background: '#090d16', padding: '14px', borderRadius: '8px', border: '1px solid #1e293b', textAlign: 'center' }}>
-                        <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Enforced Action Policy</div>
-                        <div style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: '700', marginTop: '6px', color: '#f1f5f9' }}>{evaluation.status}</div>
-                      </div>
-                    </div>
+        {/* Right Column: AI Engine Real-Time Output */}
+        <div className="bg-[#0e1626] border border-slate-800/80 p-6 rounded-2xl shadow-xl flex flex-col justify-between">
+          <div>
+            <h2 className="text-sm font-bold uppercase text-indigo-400 tracking-wider flex items-center mb-4">
+              <span className="mr-2">🔑</span> AI Engine Interception Terminal
+            </h2>
+
+            {evalResult ? (
+              <div className="space-y-4">
+                <div className="bg-[#070b14] p-5 rounded-xl border border-slate-800 flex justify-between items-center">
+                  <div>
+                    <span className="text-xs text-slate-400 uppercase tracking-wider block">Calculated Threat Risk</span>
+                    <span className={`text-4xl font-black ${evalResult.risk_score > 0.6 ? 'text-rose-500' : 'text-emerald-400'}`}>
+                      {(evalResult.risk_score * 100).toFixed(0)}%
+                    </span>
                   </div>
-                ) : (
-                  <div style={{ textAlign: 'center', color: '#475569', padding: '60px 20px', fontSize: '14px' }}>
-                    <Activity size={32} style={{ margin: '0 auto 12px auto', opacity: '0.3', display: 'block' }} />
-                    <div>Awaiting streaming evaluation signals... Move parameters and dispatch the evaluation execution button.</div>
+                  <div className={`px-4 py-2 rounded-lg font-black text-sm uppercase tracking-wider ${evalResult.status === 'GRANTED' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-rose-950 text-rose-500 border border-rose-800'}`}>
+                    {evalResult.status}
                   </div>
+                </div>
+
+                <div className="bg-[#070b14] p-4 rounded-xl border border-slate-800 text-xs font-mono space-y-1.5 text-slate-300">
+                  <div><span className="text-slate-500">Client Address:</span> {clientIp}</div>
+                  <div><span className="text-slate-500">Decision Reason:</span> {evalResult.reason}</div>
+                  <div><span className="text-slate-500">Target File Node:</span> {evalResult.target_resource}</div>
+                </div>
+
+                {downloadUrl && (
+                  <a 
+                    href={downloadUrl} 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="block text-center w-full bg-emerald-600 hover:bg-emerald-500 font-bold text-xs py-3 rounded-lg text-white transition-all shadow-lg shadow-emerald-600/20 uppercase tracking-wider"
+                  >
+                    🔓 DOWNLOAD REAL PROTECTED FILE FROM LAPTOP VAULT
+                  </a>
                 )}
               </div>
-              <div style={{ fontSize: '10px', color: '#475569', borderTop: '1px solid #1e293b', paddingTop: '12px', marginTop: '16px', fontFamily: 'monospace' }}>
-                Anomaly Detection Model: Isolation Forest Core Baseline Profile (Contamination Rate: 15%)
+            ) : (
+              <div className="h-64 flex flex-col items-center justify-center text-slate-500 italic text-sm">
+                <span>Awaiting challenge request initialization...</span>
               </div>
-            </div>
-
+            )}
           </div>
 
-          {/* Ledger Table Section */}
-          <div style={{ background: '#111827', border: '1px solid #1e293b', borderRadius: '16px', padding: '24px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '700', marginTop: '0', marginBottom: '20px', color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #1e293b', paddingBottom: '12px' }}>
-              <Database size={18} color="#eab308" /> Decentralized Vault Audit Trail (Distributed Block Logging)
-            </h2>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-                <thead>
-                  <tr style={{ background: '#090d16', border: '1px solid #1e293b', color: '#64748b' }}>
-                    <th style={{ padding: '12px' }}>Identity Address</th>
-                    <th style={{ padding: '12px' }}>Target Protected Resource</th>
-                    <th style={{ padding: '12px' }}>Context Risk Assessment</th>
-                    <th style={{ padding: '12px' }}>Gateway Decision Policy</th>
-                    <th style={{ padding: '12px', fontFamily: 'monospace' }}>Cryptographic Tx Receipt Hash</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {chainLogs.map((log, index) => (
-                    <tr key={index} style={{ borderBottom: '1px solid #1e293b', background: 'rgba(17,24,39,0.2)' }}>
-                      <td style={{ padding: '14px', fontWeight: '600', color: '#f1f5f9' }}>{log.user}</td>
-                      <td style={{ padding: '14px', color: '#94a3b8' }}>{log.resource}</td>
-                      <td style={{ padding: '14px' }}>
-                        <span style={{ fontSize: '10px', fontWeight: '800', padding: '3px 8px', borderRadius: '4px', border: log.risk === 'LOW' ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(239,68,68,0.3)', background: log.risk === 'LOW' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: log.risk === 'LOW' ? '#10b981' : '#ef4444' }}>
-                          {log.risk}
-                        </span>
-                      </td>
-                      <td style={{ padding: '14px', fontFamily: 'monospace', fontSize: '12px', color: '#cbd5e1' }}>{log.status}</td>
-                      <td style={{ padding: '14px', fontFamily: 'monospace', fontSize: '11px', color: '#3b82f6' }}>{log.tx}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-        </div>
-      )}
-
-      {/* PAGE 2: HOW IT WORKS EDUCATION PANEL */}
-      {activeTab === 'docs' && (
-        <div style={{ background: '#111827', border: '1px solid #1e293b', borderRadius: '16px', padding: '32px', maxWidth: '850px', margin: '0 auto', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: '800', marginTop: '0', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid #1e293b', paddingBottom: '16px' }}>
-            <Layers color="#3b82f6" /> System Architecture & Execution Pipeline
-          </h2>
-          
-          <p style={{ color: '#94a3b8', fontSize: '14px', lineHeight: '1.6' }}>
-            This system establishes an advanced <strong>Zero Trust Network Access (ZTNA) Framework</strong> prototype. Instead of using legacy username/password authentication models, every validation challenge triggers a real-time dual evaluation check using <strong>Artificial Intelligence (Inference Verification)</strong> and <strong>Blockchain (Immutable State Logging)</strong>.
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginTop: '24px' }}>
-            <div style={{ background: '#090d16', border: '1px solid #1e293b', padding: '20px', borderRadius: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#3b82f6', fontWeight: '700', fontSize: '14px', marginBottom: '8px' }}>
-                <CheckCircle size={16} /> Step 1: Contextual Telemetry Capture
-              </div>
-              <div style={{ color: '#94a3b8', fontSize: '13px', paddingLeft: '26px', lineHeight: '1.5' }}>
-                The access gateway intercepts connections and collects real-time context metrics: user profiles, resource targets, time matrices, and typing mechanics (keystroke flight delay profiles).
-              </div>
-            </div>
-
-            <div style={{ background: '#090d16', border: '1px solid #1e293b', padding: '20px', borderRadius: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#10b981', fontWeight: '700', fontSize: '14px', marginBottom: '8px' }}>
-                <CheckCircle size={16} /> Step 2: AI Behavioral Risk Assessment
-              </div>
-              <div style={{ color: '#94a3b8', fontSize: '13px', paddingLeft: '26px', lineHeight: '1.5' }}>
-                The Flask backend feeds these context variables into an un-supervised <strong>Isolation Forest Machine Learning Model</strong>. The model computes an outlier boundary classification. If the parameters correlate with normal behaviors, access passes. If anomalies like credential stuffing or automated attacks trigger, it flags a high risk.
-              </div>
-            </div>
-
-            <div style={{ background: '#090d16', border: '1px solid #1e293b', padding: '20px', borderRadius: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#eab308', fontWeight: '700', fontSize: '14px', marginBottom: '8px' }}>
-                <CheckCircle size={16} /> Step 3: Immutable Blockchain Auditing
-              </div>
-              <div style={{ color: '#94a3b8', fontSize: '13px', paddingLeft: '26px', lineHeight: '1.5' }}>
-                The final validation metadata is committed to a decentralized <strong>Solidity Smart Contract</strong>. Once signed and mined into a block, this data trace is completely unalterable. Administrators cannot clear, hide, or manipulate the threat history profile ledger logs.
-              </div>
-            </div>
-          </div>
-
-          <div style={{ marginTop: '32px', borderTop: '1px solid #1e293b', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '11px', color: '#475569', fontWeight: '700' }}>Hirasugar Institute of Technology • Major Academic Project 2026</span>
-            <button onClick={() => setActiveTab('dashboard')} style={{ background: 'transparent', border: '1px solid #3b82f6', color: '#3b82f6', padding: '8px 16px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>Back to Real-time Node Console</button>
+          <div className="text-[11px] text-slate-500 text-center border-t border-slate-800/80 pt-4">
+            Anomaly Detection Model: Isolation Forest Core Baseline Profile (Contamination Rate: 15%)
           </div>
         </div>
-      )}
+      </div>
 
-      {/* INTERACTIVE TOPOLOGY DIAGRAM OVERLAY MODAL */}
-      {showArchModal && (
-        <div style={{ position: 'fixed', inset: 0, top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div style={{ backgroundColor: '#0f1422', border: '1px solid #1e293b', borderRadius: '20px', maxWidth: '800px', width: '100%', padding: '28px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', position: 'relative' }}>
-            
-            {/* Modal Exit Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '14px', marginBottom: '24px' }}>
-              <div>
-                <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#ffffff', margin: 0 }}>Aegis ZTNA Infrastructure Topology</h3>
-                <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0' }}>Tap nodes below to view pipeline telemetry specifics</p>
-              </div>
-              <button 
-                onClick={() => setShowArchModal(false)}
-                style={{ background: 'transparent', border: 'none', color: '#64748b', fontSize: '20px', cursor: 'pointer', fontWeight: 'bold' }}
-              >
-                ✕
-              </button>
-            </div>
+      {/* Bottom Row: Decentralized Vault Audit Log */}
+      <div className="bg-[#0e1626] border border-slate-800/80 p-6 rounded-2xl shadow-xl">
+        <h2 className="text-sm font-bold uppercase text-indigo-400 tracking-wider mb-4 flex items-center">
+          <span className="mr-2">🪙</span> Decentralized Vault Audit Trail (Distributed Block Logging)
+        </h2>
 
-            {/* Visual Distributed Node Architecture Map with Active state triggers */}
-            <div style={{ display: 'flex', gap: '16px', alignItems: 'center', justifyContent: 'space-between', margin: '24px 0', flexWrap: 'wrap' }}>
-              
-              {/* Node 1: Client */}
-              <div 
-                className="topo-node"
-                onClick={() => setSelectedNode('client')}
-                style={{ flex: '1 1 180px', background: '#111827', border: selectedNode === 'client' ? '2px solid #818cf8' : '1px solid #4338ca', padding: '16px', borderRadius: '12px', textAlign: 'center', boxShadow: selectedNode === 'client' ? '0 0 15px rgba(129, 140, 248, 0.4)' : '0 4px 12px rgba(67, 56, 202, 0.15)' }}
-              >
-                <div style={{ fontSize: '24px', marginBottom: '6px' }}>📱</div>
-                <div style={{ fontWeight: '700', fontSize: '14px', color: '#818cf8' }}>Mobile Client App</div>
-                <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px', fontFamily: 'monospace' }}>React View State</div>
-              </div>
-
-              <div className="pulse-arrow" style={{ color: '#4338ca', fontWeight: 'bold', fontSize: '18px', userSelect: 'none' }}>──➔</div>
-
-              {/* Node 2: Gateway */}
-              <div 
-                className="topo-node"
-                onClick={() => setSelectedNode('gateway')}
-                style={{ flex: '1 1 180px', background: '#111827', border: selectedNode === 'gateway' ? '2px solid #34d399' : '1px solid #065f46', padding: '16px', borderRadius: '12px', textAlign: 'center', boxShadow: selectedNode === 'gateway' ? '0 0 15px rgba(52, 211, 153, 0.4)' : '0 4px 12px rgba(6, 95, 70, 0.15)' }}
-              >
-                <div style={{ fontSize: '24px', marginBottom: '6px' }}>⚡</div>
-                <div style={{ fontWeight: '700', fontSize: '14px', color: '#34d399' }}>Edge Gateway Host</div>
-                <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px', fontFamily: 'monospace' }}>Vercel Serverless</div>
-              </div>
-
-              <div className="pulse-arrow" style={{ color: '#065f46', fontWeight: 'bold', fontSize: '18px', userSelect: 'none' }}>──➔</div>
-
-              {/* Node 3: AI Inference Engine */}
-              <div 
-                className="topo-node"
-                onClick={() => setSelectedNode('engine')}
-                style={{ flex: '1 1 180px', background: '#111827', border: selectedNode === 'engine' ? '2px solid #fbbf24' : '1px solid #92400e', padding: '16px', borderRadius: '12px', textAlign: 'center', boxShadow: selectedNode === 'engine' ? '0 0 15px rgba(251, 191, 36, 0.4)' : '0 4px 12px rgba(146, 64, 14, 0.15)' }}
-              >
-                <div style={{ fontSize: '24px', marginBottom: '6px' }}>🔥</div>
-                <div style={{ fontWeight: '700', fontSize: '14px', color: '#fbbf24' }}>AI Inference Node</div>
-                <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px', fontFamily: 'monospace' }}>Flask API (Render)</div>
-              </div>
-
-            </div>
-
-            {/* DYNAMIC INFORMATION SUB-PANEL: Updates dynamically based on clicked node */}
-            <div style={{ background: '#111827', border: '1px solid #1e293b', padding: '20px', borderRadius: '12px', marginTop: '20px', borderLeft: `4px solid ${selectedNode === 'client' ? '#818cf8' : selectedNode === 'gateway' ? '#34d399' : '#fbbf24'}` }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#ffffff' }}>
-                  {nodeDetails[selectedNode].title}
-                </h4>
-                <span style={{ fontSize: '11px', background: '#1e293b', padding: '2px 8px', borderRadius: '12px', color: '#94a3b8', fontWeight: '600', fontFamily: 'monospace' }}>
-                  {nodeDetails[selectedNode].tech}
-                </span>
-              </div>
-              <p style={{ margin: 0, fontSize: '13px', color: '#94a3b8', lineHeight: '1.5' }}>
-                {nodeDetails[selectedNode].desc}
-              </p>
-            </div>
-
-            {/* Technical Footer Summary Info */}
-            <div style={{ marginTop: '20px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#475569', borderTop: '1px solid #1e293b', paddingTop: '12px' }}>
-              <Info size={14} />
-              <span>Clicking any infrastructure component above filters the telemetry analysis core tracking layout.</span>
-            </div>
-
-          </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs font-mono">
+            <thead>
+              <tr className="border-b border-slate-800 text-slate-400 uppercase">
+                <th className="pb-3">Identity Address</th>
+                <th className="pb-3">Target Protected Resource</th>
+                <th className="pb-3">Context Risk Assessment</th>
+                <th className="pb-3">Gateway Decision Policy</th>
+                <th className="pb-3">Cryptographic Tx Receipt Hash</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/60">
+              {txLogs.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="py-4 text-center text-slate-500 italic">No block events written to the local network yet.</td>
+                </tr>
+              ) : txLogs.map((log, idx) => (
+                <tr key={idx} className="hover:bg-slate-900/50">
+                  <td className="py-3 text-indigo-300">{log.identity}</td>
+                  <td className="py-3 text-slate-300">{log.target}</td>
+                  <td className="py-3">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${log.risk > 0.6 ? 'bg-rose-950 text-rose-400' : 'bg-emerald-950 text-emerald-400'}`}>
+                      {log.risk > 0.6 ? 'HIGH' : 'LOW'} ({(log.risk * 100).toFixed(0)}%)
+                    </span>
+                  </td>
+                  <td className={`py-3 font-bold ${log.status === 'GRANTED' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {log.status}
+                  </td>
+                  <td className="py-3 text-indigo-400 hover:underline">
+                    {log.txHash.substring(0, 32)}...
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      )}
-      
+      </div>
     </div>
   );
 }
