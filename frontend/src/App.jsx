@@ -9,6 +9,10 @@ export default function AegisZTNADashboard() {
   const [keyTimes, setKeyTimes] = useState([]);
   const [cadence, setCadence] = useState(190);
   
+  // Modals for Header Controls
+  const [showTopology, setShowTopology] = useState(false);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
+
   // Vault & File Management
   const [vaultFiles, setVaultFiles] = useState(['Confidential_Enterprise_Report.txt']);
   const [selectedFile, setSelectedFile] = useState('Confidential_Enterprise_Report.txt');
@@ -38,7 +42,7 @@ export default function AegisZTNADashboard() {
         setSelectedFile(data.files[0]);
       }
     } catch (e) {
-      console.log("Backend offline or loading...");
+      console.log("Backend loading...");
     }
   };
 
@@ -149,7 +153,7 @@ export default function AegisZTNADashboard() {
   };
 
   return (
-    <div style={{ backgroundColor: '#070b14', minHeight: '100vh', color: '#f1f5f9', padding: '32px', fontFamily: 'sans-serif' }}>
+    <div style={{ backgroundColor: '#070b14', minHeight: '100vh', color: '#f1f5f9', padding: '32px', fontFamily: 'sans-serif', position: 'relative' }}>
       
       {/* Header Banner */}
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '20px', marginBottom: '32px' }}>
@@ -162,10 +166,26 @@ export default function AegisZTNADashboard() {
             <p style={{ fontSize: '12px', color: '#94a3b8', margin: '4px 0 0 0' }}>AI & Decentralized Blockchain Access Verification Node • HIT Nidasoshi</p>
           </div>
         </div>
-        <div>
-          <span style={{ backgroundColor: '#1e1b4b', color: '#818cf8', border: '1px solid #3730a3', fontSize: '12px', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold' }}>
-            Live Control Node
+
+        {/* Top Right Navigation Controls */}
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <button 
+            onClick={() => setShowTopology(true)}
+            style={{ backgroundColor: '#1e293b', color: '#a5b4fc', border: '1px solid #334155', fontSize: '12px', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            🗺️ Topology Map
+          </button>
+          
+          <span style={{ backgroundColor: '#1e1b4b', color: '#818cf8', border: '1px solid #3730a3', fontSize: '12px', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            📈 Live Control Node
           </span>
+
+          <button 
+            onClick={() => setShowHowItWorks(true)}
+            style={{ backgroundColor: '#1e293b', color: '#94a3b8', border: '1px solid #334155', fontSize: '12px', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            ❓ How It Works
+          </button>
         </div>
       </header>
 
@@ -353,6 +373,57 @@ export default function AegisZTNADashboard() {
           </table>
         </div>
       </div>
+
+      {/* TOPOLOGY MAP MODAL */}
+      {showTopology && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', items: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: '#0e1626', border: '1px solid #334155', borderRadius: '16px', padding: '32px', maxWidth: '600px', width: '90%', color: '#f1f5f9' }}>
+            <h3 style={{ fontSize: '18px', color: '#818cf8', marginTop: 0 }}>🗺️ ZTNA System Network Topology</h3>
+            <div style={{ fontFamily: 'monospace', fontSize: '12px', backgroundColor: '#070b14', padding: '16px', borderRadius: '8px', color: '#34d399', lineHeight: '1.8' }}>
+              [ Client Browser Request ] <br/>
+              &nbsp;&nbsp;&nbsp;&nbsp;│ <br/>
+              &nbsp;&nbsp;&nbsp;&nbsp;▼ <br/>
+              [ Live Keystroke Dynamics & Context Engine ] <br/>
+              &nbsp;&nbsp;&nbsp;&nbsp;│ <br/>
+              &nbsp;&nbsp;&nbsp;&nbsp;▼ <br/>
+              [ Isolation Forest AI Anomaly Evaluator (Render) ] <br/>
+              &nbsp;&nbsp;&nbsp;&nbsp;│ <br/>
+              &nbsp;&nbsp;&nbsp;&nbsp;▼ <br/>
+              [ Decentralized Solidity Smart Contract Ledger ] <br/>
+              &nbsp;&nbsp;&nbsp;&nbsp;│ <br/>
+              &nbsp;&nbsp;&nbsp;&nbsp;▼ <br/>
+              [ Protected File Vault Gateway (Access Granted / Denied) ]
+            </div>
+            <button 
+              onClick={() => setShowTopology(false)}
+              style={{ marginTop: '20px', width: '100%', backgroundColor: '#4f46e5', color: '#fff', padding: '10px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              CLOSE TOPOLOGY VIEW
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* HOW IT WORKS MODAL */}
+      {showHowItWorks && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', items: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: '#0e1626', border: '1px solid #334155', borderRadius: '16px', padding: '32px', maxWidth: '600px', width: '90%', color: '#f1f5f9' }}>
+            <h3 style={{ fontSize: '18px', color: '#818cf8', marginTop: 0 }}>❓ How Aegis ZTNA Architecture Works</h3>
+            <ul style={{ fontSize: '13px', lineHeight: '1.7', color: '#cbd5e1', paddingLeft: '20px' }}>
+              <li><strong>Continuous Verification:</strong> Zero Trust architecture assumes no identity is safe by default.</li>
+              <li><strong>Behavioral AI Analysis:</strong> Machine learning evaluates typing rhythm cadence, login hours, and contextual signals to compute dynamic threat scores.</li>
+              <li><strong>Decentralized Auditing:</strong> Smart contracts log every perimeter request permanently on a blockchain network to prevent log tampering.</li>
+              <li><strong>Secure Vault Gateway:</strong> File download tokens are generated only when the computed risk score remains below safe thresholds.</li>
+            </ul>
+            <button 
+              onClick={() => setShowHowItWorks(false)}
+              style={{ marginTop: '20px', width: '100%', backgroundColor: '#4f46e5', color: '#fff', padding: '10px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              CLOSE SYSTEM MANUAL
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );
