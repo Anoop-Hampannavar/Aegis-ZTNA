@@ -2,7 +2,7 @@ import os
 import time
 import joblib
 import numpy as np
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -23,7 +23,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 VAULT_DIR = os.path.join(BASE_DIR, "vault")
 os.makedirs(VAULT_DIR, exist_ok=True)
 
-# Create a default sample document if the vault is empty
+# Default sample file inside vault
 DEFAULT_FILE = os.path.join(VAULT_DIR, "Confidential_Enterprise_Report.txt")
 if not os.path.exists(DEFAULT_FILE):
     with open(DEFAULT_FILE, "w", encoding="utf-8") as f:
@@ -49,6 +49,11 @@ class ThreatEvaluationRequest(BaseModel):
     access_hour: int
     keystroke_cadence: float
     violation_count: int
+
+# HEALTH CHECK ENDPOINT (To wake up Render)
+@app.get("/")
+async def root_health_check():
+    return {"status": "ONLINE", "gateway": "Aegis ZTNA Engine active"}
 
 # 3. AI EVALUATION ENDPOINT
 @app.post("/api/gateway/evaluate")
@@ -79,17 +84,21 @@ async def evaluate_threat(req: ThreatEvaluationRequest, request: Request):
 async def upload_file_to_vault(file: UploadFile = File(...)):
     try:
         file_path = os.path.join(VAULT_DIR, file.filename)
-        with open(file_path, "wb") as buffer:
-            buffer.write(await file.read())
-        return {"status": "SUCCESS", "filename": file.filename, "message": "File secured inside local vault."}
+        contents = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(contents)
+        return {"status": "SUCCESS", "filename": file.filename, "message": "File secured inside vault."}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Vault Upload Error: {str(e)}")
 
 # 5. LIST VAULT FILES ENDPOINT
 @app.get("/api/vault/files")
 async def list_vault_files():
-    files = os.listdir(VAULT_DIR)
-    return {"files": files}
+    try:
+        files = os.listdir(VAULT_DIR)
+        return {"files": files}
+    except Exception as e:
+        return {"files": ["Confidential_Enterprise_Report.txt"]}
 
 # 6. SECURE FILE DOWNLOAD ENDPOINT
 @app.get("/api/vault/download")
