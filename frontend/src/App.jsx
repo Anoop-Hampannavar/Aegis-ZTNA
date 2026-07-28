@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
-const RENDER_BACKEND_URL = "https://aegis-ztna-backend.onrender.com";
+const RENDER_BACKEND_URL = "https://aegis-ztna-9spx.onrender.com";
 
 export default function AegisZTNADashboard() {
   const [identity, setIdentity] = useState('anoop@enterprise.com');
