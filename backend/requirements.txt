@@ -8,8 +8,6 @@ web3==6.15.1
 gunicorn
 fastapi
 uvicorn
-scikit-learn
-joblib
 numpy
 python-multipart
 pydantic
