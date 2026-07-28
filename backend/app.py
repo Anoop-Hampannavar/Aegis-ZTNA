@@ -7,8 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-app = FastAPI(title="Aegis ZTNA Engine")
+app = FastAPI(title="Aegis ZTNA Gateway Engine")
 
+# CORS Setup - Enables communication between Vercel Frontend and Render Backend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -22,7 +23,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 VAULT_DIR = os.path.join(BASE_DIR, "vault")
 os.makedirs(VAULT_DIR, exist_ok=True)
 
-# Generate a default sample document if vault is empty
+# Create a default sample document if the vault is empty
 DEFAULT_FILE = os.path.join(VAULT_DIR, "Confidential_Enterprise_Report.txt")
 if not os.path.exists(DEFAULT_FILE):
     with open(DEFAULT_FILE, "w", encoding="utf-8") as f:
@@ -36,7 +37,7 @@ if os.path.exists(MODEL_PATH):
     model = joblib.load(MODEL_PATH)
 else:
     from sklearn.ensemble import IsolationForest
-    # Training profile: [AccessHour, KeystrokeCadenceMs, ViolationCounter]
+    # Baseline Profile: [AccessHour, KeystrokeCadenceMs, ViolationCounter]
     X_train = [[10, 180, 0], [11, 200, 0], [14, 190, 0], [15, 210, 1], [9, 175, 0]]
     model = IsolationForest(contamination=0.15, random_state=42)
     model.fit(X_train)
@@ -49,14 +50,15 @@ class ThreatEvaluationRequest(BaseModel):
     keystroke_cadence: float
     violation_count: int
 
+# 3. AI EVALUATION ENDPOINT
 @app.post("/api/gateway/evaluate")
 async def evaluate_threat(req: ThreatEvaluationRequest, request: Request):
-    client_ip = request.client.host
+    client_ip = request.client.host if request.client else "127.0.0.1"
     features = np.array([[req.access_hour, req.keystroke_cadence, req.violation_count]])
     
-    # Calculate anomaly score
+    # Calculate anomaly score using Isolation Forest
     raw_score = model.decision_function(features)[0]
-    # Normalize risk score between 0.0 (Safe) and 1.0 (Critical Risk)
+    # Normalize risk score between 0.0 (Safe) and 1.0 (Critical Threat)
     risk_score = round(float(np.clip(1.0 - (raw_score + 0.5), 0.0, 1.0)), 2)
     
     status = "GRANTED" if risk_score < 0.60 else "DENIED"
@@ -72,7 +74,7 @@ async def evaluate_threat(req: ThreatEvaluationRequest, request: Request):
         "timestamp": int(time.time())
     }
 
-# 3. REAL FILE UPLOAD ENDPOINT
+# 4. FILE UPLOAD ENDPOINT
 @app.post("/api/vault/upload")
 async def upload_file_to_vault(file: UploadFile = File(...)):
     try:
@@ -83,13 +85,13 @@ async def upload_file_to_vault(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# 4. LIST VAULT FILES
+# 5. LIST VAULT FILES ENDPOINT
 @app.get("/api/vault/files")
 async def list_vault_files():
     files = os.listdir(VAULT_DIR)
     return {"files": files}
 
-# 5. SECURE DOWNLOAD GATEWAY
+# 6. SECURE FILE DOWNLOAD ENDPOINT
 @app.get("/api/vault/download")
 async def download_file(filename: str, token: str):
     if token != "VERIFIED_ZTNA_TOKEN":
