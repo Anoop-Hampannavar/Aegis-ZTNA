@@ -2,10 +2,13 @@ const hre = require("hardhat");
 
 async function main() {
   const AccessLog = await hre.ethers.getContractFactory("AccessLog");
-  const contract = await AccessLog.deploy();
-  await contract.waitForDeployment();
+  const accessLog = await AccessLog.deploy();
+  await accessLog.waitForDeployment();
 
-  console.log(`Contract deployed successfully to address: ${await contract.getAddress()}`);
+  const contractAddress = await accessLog.getAddress();
+  console.log("----------------------------------------------------");
+  console.log("AccessLog Contract Deployed to:", contractAddress);
+  console.log("----------------------------------------------------");
 }
 
 main().catch((error) => {
