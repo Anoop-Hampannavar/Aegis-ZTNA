@@ -1,45 +1,102 @@
 import os
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+import time
 import joblib
-from web3 import Web3
+import numpy as np
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
-app = Flask(__name__)
-CORS(app)
+app = FastAPI(title="Aegis ZTNA Engine")
 
-# Load machine learning engine weights
-model = joblib.load('ztna_model.joblib')
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-@app.route('/api/access/evaluate', methods=['POST'])
-def evaluate_access():
+# 1. REAL PROTECTED FILE VAULT SETUP
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+VAULT_DIR = os.path.join(BASE_DIR, "vault")
+os.makedirs(VAULT_DIR, exist_ok=True)
+
+# Generate a default sample document if vault is empty
+DEFAULT_FILE = os.path.join(VAULT_DIR, "Confidential_Enterprise_Report.txt")
+if not os.path.exists(DEFAULT_FILE):
+    with open(DEFAULT_FILE, "w", encoding="utf-8") as f:
+        f.write("=== CONFIDENTIAL ENTERPRISE DATA ASSET ===\n")
+        f.write("Status: Zero Trust Verified Access Granted\n")
+        f.write("Security Status: Immutable Ledger Audited Session\n")
+
+# 2. AI MODEL INITIALIZATION
+MODEL_PATH = os.path.join(BASE_DIR, "ztna_model.joblib")
+if os.path.exists(MODEL_PATH):
+    model = joblib.load(MODEL_PATH)
+else:
+    from sklearn.ensemble import IsolationForest
+    # Training profile: [AccessHour, KeystrokeCadenceMs, ViolationCounter]
+    X_train = [[10, 180, 0], [11, 200, 0], [14, 190, 0], [15, 210, 1], [9, 175, 0]]
+    model = IsolationForest(contamination=0.15, random_state=42)
+    model.fit(X_train)
+    joblib.dump(model, MODEL_PATH)
+
+class ThreatEvaluationRequest(BaseModel):
+    user_id: str
+    target_resource: str
+    access_hour: int
+    keystroke_cadence: float
+    violation_count: int
+
+@app.post("/api/gateway/evaluate")
+async def evaluate_threat(req: ThreatEvaluationRequest, request: Request):
+    client_ip = request.client.host
+    features = np.array([[req.access_hour, req.keystroke_cadence, req.violation_count]])
+    
+    # Calculate anomaly score
+    raw_score = model.decision_function(features)[0]
+    # Normalize risk score between 0.0 (Safe) and 1.0 (Critical Risk)
+    risk_score = round(float(np.clip(1.0 - (raw_score + 0.5), 0.0, 1.0)), 2)
+    
+    status = "GRANTED" if risk_score < 0.60 else "DENIED"
+    reason = "Normal Behavioral Baseline Matched" if status == "GRANTED" else "Behavioral Anomaly / Errant Keystroke Cadence"
+
+    return {
+        "user_id": req.user_id,
+        "target_resource": req.target_resource,
+        "risk_score": risk_score,
+        "status": status,
+        "reason": reason,
+        "client_ip": client_ip,
+        "timestamp": int(time.time())
+    }
+
+# 3. REAL FILE UPLOAD ENDPOINT
+@app.post("/api/vault/upload")
+async def upload_file_to_vault(file: UploadFile = File(...)):
     try:
-        data = request.json
-        user = data.get('user', 'unknown_identity')
-        resource = data.get('resource', 'unspecified_resource')
-        hour = int(data.get('hour', 12))
-        delay = int(data.get('delay', 150))
-        attempts = int(data.get('attempts', 0))
-
-        # Perform Inference check using ML model
-        features = [[hour, delay, attempts]]
-        prediction = model.predict(features)
-        
-        # Mapping parameters (-1 Anomaly, 1 Baseline Normal)
-        if prediction[0] == 1:
-            risk_level = "LOW"
-            status = "GRANTED"
-        else:
-            risk_level = "HIGH"
-            status = "DENIED_MFA_REQUIRED"
-
-        return jsonify({
-            "status": status,
-            "riskLevel": risk_level,
-            "metricsEvaluated": {"hour": hour, "typingDelayMs": delay, "failedAttempts": attempts}
-        }), 200
-
+        file_path = os.path.join(VAULT_DIR, file.filename)
+        with open(file_path, "wb") as buffer:
+            buffer.write(await file.read())
+        return {"status": "SUCCESS", "filename": file.filename, "message": "File secured inside local vault."}
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+# 4. LIST VAULT FILES
+@app.get("/api/vault/files")
+async def list_vault_files():
+    files = os.listdir(VAULT_DIR)
+    return {"files": files}
+
+# 5. SECURE DOWNLOAD GATEWAY
+@app.get("/api/vault/download")
+async def download_file(filename: str, token: str):
+    if token != "VERIFIED_ZTNA_TOKEN":
+        raise HTTPException(status_code=403, detail="ZTNA Perimeter Violation: Token Invalid or Revoked")
+    
+    file_path = os.path.join(VAULT_DIR, filename)
+    if os.path.exists(file_path):
+        return FileResponse(file_path, filename=filename)
+    
+    raise HTTPException(status_code=404, detail="File Not Found in Vault")
