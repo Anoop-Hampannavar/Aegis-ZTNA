@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 // Replace with deployed address from Terminal 2 if different
 const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+const RENDER_BACKEND_URL = "https://aegis-ztna-backend.onrender.com";
 
 export default function AegisZTNADashboard() {
   const [identity, setIdentity] = useState('anoop@enterprise.com');
@@ -32,7 +33,7 @@ export default function AegisZTNADashboard() {
 
   const fetchVaultFiles = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/vault/files');
+      const res = await fetch(`${RENDER_BACKEND_URL}/api/vault/files`);
       const data = await res.json();
       if (data.files && data.files.length > 0) {
         setVaultFiles(data.files);
@@ -53,7 +54,7 @@ export default function AegisZTNADashboard() {
     formData.append("file", file);
 
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/vault/upload', {
+      const res = await fetch(`${RENDER_BACKEND_URL}/api/vault/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -92,8 +93,8 @@ export default function AegisZTNADashboard() {
     setDownloadUrl(null);
 
     try {
-      // 1. Send data to Python AI Gateway
-      const res = await fetch('http://127.0.0.1:8000/api/gateway/evaluate', {
+      // 1. Send data to Python AI Gateway on Render
+      const res = await fetch(`${RENDER_BACKEND_URL}/api/gateway/evaluate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -146,11 +147,11 @@ export default function AegisZTNADashboard() {
 
       // 3. Grant Download Token if Passed
       if (aiData.status === "GRANTED") {
-        setDownloadUrl(`http://127.0.0.1:8000/api/vault/download?filename=${encodeURIComponent(selectedFile)}&token=VERIFIED_ZTNA_TOKEN`);
+        setDownloadUrl(`${RENDER_BACKEND_URL}/api/vault/download?filename=${encodeURIComponent(selectedFile)}&token=VERIFIED_ZTNA_TOKEN`);
       }
 
     } catch (err) {
-      alert("Error: Backend API is offline. Ensure 'uvicorn app.main:app' is running.");
+      alert("Error: Backend API is offline. Ensure Render deployment is active.");
     } finally {
       setEvaluating(false);
     }
@@ -298,7 +299,7 @@ export default function AegisZTNADashboard() {
                     rel="noreferrer" 
                     className="block text-center w-full bg-emerald-600 hover:bg-emerald-500 font-bold text-xs py-3 rounded-lg text-white transition-all shadow-lg shadow-emerald-600/20 uppercase tracking-wider"
                   >
-                    🔓 DOWNLOAD REAL PROTECTED FILE FROM LAPTOP VAULT
+                    🔓 DOWNLOAD REAL PROTECTED FILE FROM VAULT
                   </a>
                 )}
               </div>
