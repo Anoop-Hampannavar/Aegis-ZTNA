@@ -1,40 +1,51 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.20;
 
 contract AccessLog {
     struct LogEntry {
-        string userAddress;
-        string resourceRequested;
         uint256 timestamp;
-        string riskLevel;
-        string status;
+        string userId;
+        string targetResource;
+        uint256 riskScorePercentage;
+        string decisionStatus;
     }
 
-    LogEntry[] private logs;
-    address public admin;
+    LogEntry[] public auditLogs;
 
-    event LogRecorded(string userAddress, string resource, string riskLevel, string status);
+    event AccessRecorded(
+        uint256 indexed timestamp,
+        string userId,
+        string targetResource,
+        uint256 riskScorePercentage,
+        string decisionStatus
+    );
 
-    modifier sincerelyAdmin() {
-        require(msg.sender == admin, "Execution restricted to authorized system gateway.");
-        _;
+    function logAccess(
+        string memory _userId,
+        string memory _targetResource,
+        uint256 _riskScorePercentage,
+        string memory _decisionStatus
+    ) public returns (uint256 logId) {
+        auditLogs.push(LogEntry({
+            timestamp: block.timestamp,
+            userId: _userId,
+            targetResource: _targetResource,
+            riskScorePercentage: _riskScorePercentage,
+            decisionStatus: _decisionStatus
+        }));
+
+        emit AccessRecorded(
+            block.timestamp,
+            _userId,
+            _targetResource,
+            _riskScorePercentage,
+            _decisionStatus
+        );
+
+        return auditLogs.length - 1;
     }
 
-    constructor() {
-        admin = msg.sender;
-    }
-
-    function recordAccess(
-        string memory _user, 
-        string memory _resource, 
-        string memory _risk, 
-        string memory _status
-    ) public sincerelyAdmin {
-        logs.push(LogEntry(_user, _resource, block.timestamp, _risk, _status));
-        emit LogRecorded(_user, _resource, _risk, _status);
-    }
-
-    function getLogs() public view returns (LogEntry[] memory) {
-        return logs;
+    function getLogCount() public view returns (uint256) {
+        return auditLogs.length;
     }
 }
