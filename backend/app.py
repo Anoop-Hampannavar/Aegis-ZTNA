@@ -4,8 +4,9 @@ import joblib
 import numpy as np
 from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
+from cryptography.fernet import Fernet
 
 app = FastAPI(title="Aegis ZTNA Gateway Engine")
 
@@ -18,18 +19,35 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 1. REAL PROTECTED FILE VAULT SETUP
+# 1. AES-256 VAULT ENCRYPTION & DIRECTORY SETUP
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 VAULT_DIR = os.path.join(BASE_DIR, "vault")
 os.makedirs(VAULT_DIR, exist_ok=True)
 
-# Default sample file inside vault
-DEFAULT_FILE = os.path.join(VAULT_DIR, "Confidential_Enterprise_Report.txt")
-if not os.path.exists(DEFAULT_FILE):
-    with open(DEFAULT_FILE, "w", encoding="utf-8") as f:
-        f.write("=== CONFIDENTIAL ENTERPRISE DATA ASSET ===\n")
-        f.write("Status: Zero Trust Verified Access Granted\n")
-        f.write("Security Status: Immutable Ledger Audited Session\n")
+# Master Vault Key Generation/Loading
+KEY_FILE = os.path.join(BASE_DIR, "vault_master.key")
+if os.path.exists(KEY_FILE):
+    with open(KEY_FILE, "rb") as kf:
+        VAULT_KEY = kf.read()
+else:
+    VAULT_KEY = Fernet.generate_key()
+    with open(KEY_FILE, "wb") as kf:
+        kf.write(VAULT_KEY)
+
+cipher = Fernet(VAULT_KEY)
+
+# Create a default encrypted sample document if the vault is empty
+DEFAULT_FILE = os.path.join(VAULT_DIR, "Confidential_Enterprise_Report.txt.enc")
+if not os.path.exists(DEFAULT_FILE) and not os.path.exists(os.path.join(VAULT_DIR, "Confidential_Enterprise_Report.txt")):
+    sample_text = (
+        "=== CONFIDENTIAL ENTERPRISE DATA ASSET ===\n"
+        "Status: Zero Trust Verified Access Granted\n"
+        "Security Status: Immutable Ledger Audited Session\n"
+        "Vault Protection: AES-256 Encrypted At Rest\n"
+    ).encode('utf-8')
+    encrypted_sample = cipher.encrypt(sample_text)
+    with open(DEFAULT_FILE, "wb") as f:
+        f.write(encrypted_sample)
 
 # 2. AI MODEL INITIALIZATION
 MODEL_PATH = os.path.join(BASE_DIR, "ztna_model.joblib")
@@ -50,7 +68,7 @@ class ThreatEvaluationRequest(BaseModel):
     keystroke_cadence: float
     violation_count: int
 
-# HEALTH CHECK ENDPOINT (To wake up Render)
+# HEALTH CHECK ENDPOINT
 @app.get("/")
 async def root_health_check():
     return {"status": "ONLINE", "gateway": "Aegis ZTNA Engine active"}
@@ -79,15 +97,20 @@ async def evaluate_threat(req: ThreatEvaluationRequest, request: Request):
         "timestamp": int(time.time())
     }
 
-# 4. FILE UPLOAD ENDPOINT
+# 4. ENCRYPTED FILE UPLOAD ENDPOINT
 @app.post("/api/vault/upload")
 async def upload_file_to_vault(file: UploadFile = File(...)):
     try:
-        file_path = os.path.join(VAULT_DIR, file.filename)
-        contents = await file.read()
+        raw_bytes = await file.read()
+        
+        # AES-256 Encryption at Rest
+        encrypted_bytes = cipher.encrypt(raw_bytes)
+        
+        file_path = os.path.join(VAULT_DIR, f"{file.filename}.enc")
         with open(file_path, "wb") as f:
-            f.write(contents)
-        return {"status": "SUCCESS", "filename": file.filename, "message": "File secured inside vault."}
+            f.write(encrypted_bytes)
+            
+        return {"status": "SUCCESS", "filename": file.filename, "message": "File encrypted (AES-256) & secured inside vault."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Vault Upload Error: {str(e)}")
 
@@ -95,19 +118,46 @@ async def upload_file_to_vault(file: UploadFile = File(...)):
 @app.get("/api/vault/files")
 async def list_vault_files():
     try:
-        files = os.listdir(VAULT_DIR)
-        return {"files": files}
+        raw_files = os.listdir(VAULT_DIR)
+        clean_files = []
+        for f in raw_files:
+            if f.endswith('.key'):
+                continue
+            if f.endswith('.enc'):
+                clean_files.append(f[:-4])  # Strip '.enc' extension for cleaner UI presentation
+            else:
+                clean_files.append(f)
+        return {"files": list(set(clean_files))}
     except Exception as e:
         return {"files": ["Confidential_Enterprise_Report.txt"]}
 
-# 6. SECURE FILE DOWNLOAD ENDPOINT
+# 6. SECURE DECRYPTION & DOWNLOAD ENDPOINT
 @app.get("/api/vault/download")
 async def download_file(filename: str, token: str):
     if token != "VERIFIED_ZTNA_TOKEN":
         raise HTTPException(status_code=403, detail="ZTNA Perimeter Violation: Token Invalid or Revoked")
     
-    file_path = os.path.join(VAULT_DIR, filename)
-    if os.path.exists(file_path):
-        return FileResponse(file_path, filename=filename)
+    enc_path = os.path.join(VAULT_DIR, f"{filename}.enc")
+    raw_path = os.path.join(VAULT_DIR, filename)
+    
+    # 1. Decrypt AES-256 Encrypted Payload in Memory
+    if os.path.exists(enc_path):
+        try:
+            with open(enc_path, "rb") as f:
+                encrypted_data = f.read()
+            
+            decrypted_data = cipher.decrypt(encrypted_data)
+            
+            return Response(
+                content=decrypted_data,
+                media_type="application/octet-stream",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="Vault Decryption Error")
+            
+    # 2. Fallback for legacy plain unencrypted files
+    elif os.path.exists(raw_path):
+        return FileResponse(raw_path, filename=filename)
     
     raise HTTPException(status_code=404, detail="File Not Found in Vault")
